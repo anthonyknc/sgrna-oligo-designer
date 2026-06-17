@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Outputs (don't commit generated files)
+*_oligos.csv
+*_oligos_IDT.xlsx
+
+# OS
+.DS_Store
