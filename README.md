@@ -59,7 +59,7 @@ outputs in [`example_outputs/`](example_outputs/).
 
 ### Example 1 — ipUSEPR vector (Excel input)
 
-The **ipUSEPR** vector is most battle-testd sgRNA expression system in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) for individual gene pertubations and CRISPR library screens using CRISPRko/i/a/tiling. It is used with cells engineered with SpCas9 and its variants, e.g. lentiCas9-Blast (Addgene #52962)[https://www.addgene.org/52962/], Lenti-dCas9-KRAB-blast (Addgene #89567)[https://www.addgene.org/89567/], and lenti dCAS-VP64_Blast (Addgene #61425)[https://www.addgene.org/61425/], etc.
+The **ipUSEPR** vector is most battle-testd sgRNA expression system in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) for individual gene pertubations and CRISPR library screens using CRISPRko/i/a/tiling. It is used with cells engineered with SpCas9 and its variants, e.g. lentiCas9-Blast [Addgene #52962](https://www.addgene.org/52962/), Lenti-dCas9-KRAB-blast [Addgene #89567](https://www.addgene.org/89567/), and lenti dCAS-VP64_Blast [Addgene #61425](https://www.addgene.org/61425/), etc.
 (PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
 [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/),
 [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),
