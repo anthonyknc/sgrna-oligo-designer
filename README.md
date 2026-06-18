@@ -40,13 +40,7 @@ Before using this tool, you need a list of 20-nucleotide sgRNA sequences targeti
 
 > 🔗 https://portals.broadinstitute.org/gppx/crispick/public
 
-CRISPRpick is free to use and requires no account. Simply enter your gene name or transcript ID, select your genome, Cas9 system (e.g. SpCas9), and the tool will return ranked sgRNA sequences with on-target efficiency scores. Select your top candidates (typically 3–6 per gene) and export them to a spreadsheet.
-
-If you use CRISPRpick designs in a publication, please acknowledge:
-> *"Guide designs provided by the CRISPick web tool of the GPP at the Broad Institute"*
-> and cite PMID [36068235](https://pubmed.ncbi.nlm.nih.gov/36068235/) for SpCas9 designs, or PMID [32661438](https://pubmed.ncbi.nlm.nih.gov/32661438/) for Cas12a designs.
-
-Other popular sgRNA design tools include [CHOPCHOP](https://chopchop.cbu.uib.no) and [CRISPOR](http://crispor.tefor.net).
+CRISPRpick is free to use and requires no account. Simply enter your gene name or transcript ID, select your genome, Cas9 system (e.g. *Sp*Cas9), and the tool will return ranked sgRNA sequences with on-target efficiency scores. Select your top candidates (typically 3–6 per gene) and export them to a spreadsheet that is tidied into the formats similar to [example_inputs/sgRNA_seqs](example_inputs/sgRNA_seqs).
 
 ---
 
