@@ -11,8 +11,8 @@ Given a list of sgRNA sequences, it generates:
 ## What you need before starting
 
 - **Python 3.12 or later** — [download here](https://www.python.org/downloads/)
-- **pixi** (recommended) — a fast, easy package manager for scientific Python. [Install instructions here](https://pixi.sh/latest/)
-- Or, if you prefer: `pip install openpyxl biopython`
+- **pixi** (recommended) — a fast, easy environment manager for scientific Python. [Install here](https://pixi.sh/latest/)
+- Or, if you prefer pip: `pip install openpyxl biopython`
 
 ---
 
@@ -34,7 +34,23 @@ You are now ready to run the script.
 
 ---
 
-## Input file format
+## Step 1 — Design your sgRNA sequences with CRISPRpick
+
+Before using this tool, you need a list of 20-nucleotide sgRNA sequences targeting your gene(s) of interest. We recommend **CRISPRpick** from the Broad Institute:
+
+> 🔗 https://portals.broadinstitute.org/gppx/crispick/public
+
+CRISPRpick is free to use and requires no account. Simply enter your gene name or transcript ID, select your genome, Cas9 system (e.g. SpCas9), and the tool will return ranked sgRNA sequences with on-target efficiency scores. Select your top candidates (typically 3–6 per gene) and export them to a spreadsheet.
+
+If you use CRISPRpick designs in a publication, please acknowledge:
+> *"Guide designs provided by the CRISPick web tool of the GPP at the Broad Institute"*
+> and cite PMID [36068235](https://pubmed.ncbi.nlm.nih.gov/36068235/) for SpCas9 designs, or PMID [32661438](https://pubmed.ncbi.nlm.nih.gov/32661438/) for Cas12a designs.
+
+Other popular sgRNA design tools include [CHOPCHOP](https://chopchop.cbu.uib.no) and [CRISPOR](http://crispor.tefor.net).
+
+---
+
+## Step 2 — Prepare your input file
 
 Prepare a spreadsheet (Excel `.xlsx`, `.csv`, or `.tsv`) with at least these two columns:
 
@@ -44,22 +60,21 @@ Prepare a spreadsheet (Excel `.xlsx`, `.csv`, or `.tsv`) with at least these two
 | sg_tRFP657_294 | GTCACCACATACGAAGACGG |
 
 - **`sgRNA_id`** — a unique name for each sgRNA (no spaces; underscores are fine)
-- **`sgRNA_seq`** — the 20-nucleotide sgRNA sequence, **without** the PAM
+- **`sgRNA_seq`** — the 20-nucleotide sgRNA sequence, **without** the PAM and **without** any prefixes
 
 Additional columns (e.g. target gene, genomic coordinates, on-target score) are allowed and will be ignored by the script.
 
 See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use example files in all three formats.
 
+> **Note:** This script is designed for **SpCas9** sgRNAs using the **BsmBI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPRv2). For other nucleases or cloning systems, adjust the `--top-prefix`, `--bot-prefix`, and `--bot-suffix` options accordingly.
+
 ---
 
-## Quick start examples
-
-The following examples use the provided example input files and reproduce the
-outputs in [`example_outputs/`](example_outputs/).
+## Step 3 — Run the script
 
 ### Example 1 — ipUSEPR vector (Excel input)
 
-The **ipUSEPR** vector is most battle-testd sgRNA expression system in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) for individual gene pertubations and CRISPR library screens using CRISPRko/i/a/tiling. It is used with cells engineered with SpCas9 and its variants, e.g. lentiCas9-Blast ([Addgene #52962](https://www.addgene.org/52962/)), Lenti-dCas9-KRAB-blast ([Addgene #89567](https://www.addgene.org/89567/)), and lenti dCAS-VP64_Blast ([Addgene #61425](https://www.addgene.org/61425/)), etc.
+The **ipUSEPR** vector is a doxycycline-inducible sgRNA expression system — the most battle-tested vector in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) for individual gene perturbations and CRISPR library screens using CRISPRko/i/a/tiling. It is used with cells stably expressing SpCas9 or its variants, such as lentiCas9-Blast ([Addgene #52962](https://www.addgene.org/52962/)), Lenti-dCas9-KRAB-blast ([Addgene #89567](https://www.addgene.org/89567/)), and lenti-dCAS-VP64-Blast ([Addgene #61425](https://www.addgene.org/61425/))
 (PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
 [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/),
 [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),
@@ -67,7 +82,7 @@ The **ipUSEPR** vector is most battle-testd sgRNA expression system in our [lab]
 [38394203](https://pubmed.ncbi.nlm.nih.gov/38394203/),
 [38316881](https://pubmed.ncbi.nlm.nih.gov/38316881/),
 [39716856](https://pubmed.ncbi.nlm.nih.gov/39716856/)).
-The stuffer is short enough to paste directly as a string.
+The stuffer sequence is short enough to paste directly as a string.
 
 ```bash
 python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.xlsx \
@@ -79,10 +94,7 @@ python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.xls
 
 ### Example 2 — lentiCRISPRv2 vector (CSV input)
 
-**lentiCRISPRv2** ([Addgene #52961](https://www.addgene.org/52961/)) is one of
-the most widely used all-in-one lentiviral CRISPR vectors. Its stuffer sequence
-is long (~1,700 bp), so it is provided as a FASTA file — the script detects
-this automatically.
+**lentiCRISPRv2** ([Addgene #52961](https://www.addgene.org/52961/)) is one of the most widely used all-in-one lentiviral CRISPR vectors. Its stuffer sequence is long (~1,700 bp), so it is provided as a FASTA file — the script detects this automatically.
 
 ```bash
 python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.csv \
@@ -94,9 +106,7 @@ python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.csv
 
 ### Example 3 — LentiCRISPRv2GFP vector (TSV input)
 
-**LentiCRISPRv2GFP** ([Addgene #82416](https://www.addgene.org/82416/)) is a
-lentiCRISPRv2 variant with a GFP reporter, useful for tracking transduced cells
-by flow cytometry and growth competition assay. Also uses a FASTA stuffer file.
+**LentiCRISPRv2GFP** ([Addgene #82416](https://www.addgene.org/82416/)) is a lentiCRISPRv2 variant with a GFP reporter, useful for tracking transduced cells by flow cytometry and growth competition assays. It also uses a FASTA stuffer file.
 
 ```bash
 python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.tsv \
@@ -122,13 +132,43 @@ example_outputs/
 ```
 
 **IDT order form** — open in Excel to review, then upload directly to
-[IDT's order page –> "BULK INPUT"](https://www.idtdna.com/site/order/oligoentry).
+[IDT → "Order" → "Bulk Input"](https://www.idtdna.com/site/order/oligoentry).
 Each sgRNA produces two oligos: a sense (`_s`) and antisense (`_a`) strand.
 
 **GenBank plasmid files** — open in SnapGene or Benchling to verify that the
-sgRNA was inserted correctly before sending for Sanger or whole-plasmid
-sequencing. Each file contains all original vector annotations plus a new
-`misc_feature` labelled with the sgRNA ID at the insertion site.
+sgRNA sequence was inserted correctly before submitting for Sanger or
+whole-plasmid sequencing. Each file contains all original vector annotations
+plus a new `misc_feature` labelled with the sgRNA ID at the insertion site.
+
+---
+
+## A note on the extra G in the oligo sequences
+
+You may notice that the sense oligo begins with `CACCG` rather than just `CACC`.
+The final `G` is not part of your 20-mer sgRNA sequence — it is added
+deliberately for the following reason:
+
+The **human U6 promoter**, which drives sgRNA expression in most mammalian CRISPR
+vectors, is an RNA Polymerase III promoter that requires a **guanosine (G) at the
++1 transcription start site** for efficient RNA synthesis
+([Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
+When the sgRNA sequence does not naturally begin with G, an extra G is prepended
+to ensure robust transcription.
+
+Importantly, **this extra G does not significantly affect SpCas9 on-target
+cleavage activity** for wild-type SpCas9, as position 1 mismatches at the 5'
+end of the sgRNA are well tolerated
+([Hsu et al., *Nat Biotechnol*, 2013](https://pubmed.ncbi.nlm.nih.gov/23873081/);
+[Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
+If your sgRNA sequence already starts with G, the extra G is still added by
+default (as the Zhang lab recommends), resulting in a 5'-GG- start — this has
+been shown to have minimal impact on activity and may marginally improve
+specificity ([Doench et al., *Nat Biotechnol*, 2016](https://pubmed.ncbi.nlm.nih.gov/26780180/)).
+
+> If you are using a **high-fidelity Cas9 variant** (e.g. eSpCas9, SpCas9-HF1),
+> note that these variants are more sensitive to 5' mismatches. In that case,
+> preferentially select sgRNA sequences that naturally begin with G to avoid
+> the mismatch altogether.
 
 ---
 
@@ -149,37 +189,34 @@ positional arguments:
   input                     Input file (.xlsx, .csv, or .tsv)
 
 optional arguments:
-  --output, -o              Output directory or path for IDT order form Excel file
-                            Default: same folder as input file
+  --output, -o              Output directory or path for the IDT order form
+                            Default: same folder as the input file
   --vector, -v              Empty vector GenBank file (.gb). Required for plasmid output
-  --stuffer                 Stuffer sequence to replace with sgRNA. Accepts a raw
-                            sequence string or a path to a FASTA file (auto-detected)
-                            Default: 20 N's (NNNNNNNNNNNNNNNNNNNN)
+  --stuffer                 Stuffer sequence to replace with the sgRNA 20-mer.
+                            Accepts a raw sequence string or a FASTA file path
+                            (auto-detected). Default: 20 N's (NNNNNNNNNNNNNNNNNNNN)
   --multi-gb                Combine all plasmid records into a single .gb file
                             instead of one file per sgRNA
   --gb-output               Output directory for .gb plasmid files
-                            Default: same folder as input file
-  --vector-name             Custom name appended to each plasmid filename
+                            Default: same folder as the input file
+  --vector-name             Custom name prepended to each plasmid filename.
                             Default: stem of the --vector filename (e.g. "ipUSEPR")
   --seq-col                 Column name for sgRNA sequences (default: sgRNA_seq)
   --id-col                  Column name for sgRNA identifiers (default: sgRNA_id)
-  --top-prefix              5' prefix for sense oligo (default: CACCG)
-  --bot-prefix              5' prefix for antisense oligo (default: AAAC)
-  --bot-suffix              3' suffix for antisense oligo (default: C)
+  --top-prefix              5' prefix for the sense oligo (default: CACCG)
+  --bot-prefix              5' prefix for the antisense oligo (default: AAAC)
+  --bot-suffix              3' suffix for the antisense oligo (default: C)
 ```
-
-> **Default oligo design targets BsmBI-based vectors** (e.g. ipUSEPR, lentiCRISPRv2).
-> For other cloning systems, adjust `--top-prefix`, `--bot-prefix`, and `--bot-suffix`
-> accordingly.
 
 ---
 
 ## Supported vectors
 
-The script works with **any** vector as long as you provide its GenBank file
-and the stuffer sequence to replace. The following vectors have been tested:
+The script works with **any** BsmBI/Golden Gate-compatible vector as long as you
+provide its GenBank file and the stuffer sequence to replace. The following
+vectors have been tested:
 
-| Vector | Addgene / Reference | Stuffer |
+| Vector | Addgene / Reference | Stuffer input |
 |---|---|---|
 | ipUSEPR | PMIDs: 34210975, 34373586, 36563143, 37075745, 38394203, 38316881, 39716856 | Short string |
 | lentiCRISPRv2 | [Addgene #52961](https://www.addgene.org/52961/) | FASTA file |
@@ -191,20 +228,28 @@ and the stuffer sequence to replace. The following vectors have been tested:
 
 **"Stuffer not found on either strand"**
 The stuffer sequence does not match anything in your vector file. Double-check
-that the sequence is correct, or try the reverse complement. If your stuffer is
-in a FASTA file, make sure the file path is correct.
+that the sequence is correct. If your stuffer is provided as a FASTA file,
+verify the file path. Note: stuffers that span the circular origin of a plasmid
+are not currently supported.
 
 **"Stuffer found N times"**
 The stuffer sequence is not unique in your vector. Provide a longer or more
 specific stuffer sequence.
 
+**"Stuffer sequence is palindromic"**
+The stuffer's reverse complement is identical to itself, so the script cannot
+determine which strand it belongs to. Use a longer, asymmetric stuffer sequence.
+
 **"Duplicate sgRNA IDs found"**
-Two or more rows in your input file share the same `sgRNA_id`. Each sgRNA must
-have a unique name.
+Two or more rows in your input file share the same `sgRNA_id`. Every sgRNA must
+have a unique identifier.
 
 **"Column 'sgRNA_seq' not found"**
 Your input file uses different column names. Use `--seq-col` and `--id-col` to
-specify the correct column names.
+specify the correct column names, e.g.:
+```bash
+python3 sgrna_oligo_designer.py input.xlsx --seq-col guide_sequence --id-col guide_id
+```
 
 ---
 
