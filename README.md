@@ -174,9 +174,9 @@ usage: sgrna_oligo_designer [-h] [--output OUTPUT]
                             [--multi-gb] [--gb-output GB_OUTPUT]
                             [--vector-name VECTOR_NAME]
                             [--seq-col SEQ_COL] [--id-col ID_COL]
-                            [--top-prefix TOP_PREFIX]
-                            [--bot-prefix BOT_PREFIX]
-                            [--bot-suffix BOT_SUFFIX]
+                            [--sense-prefix SENSE_PREFIX]
+                            [--antisense-prefix ANTISENSE_PREFIX]
+                            [--antisense-suffix ANTISENSE_SUFFIX]
                             input
 
 positional arguments:
@@ -197,9 +197,9 @@ optional arguments:
                             Default: stem of the --vector filename (e.g. "ipUSEPR")
   --seq-col                 Column name for sgRNA sequences (default: sgRNA_seq)
   --id-col                  Column name for sgRNA identifiers (default: sgRNA_id)
-  --top-prefix              5' prefix for the sense oligo (default: CACCG)
-  --bot-prefix              5' prefix for the antisense oligo (default: AAAC)
-  --bot-suffix              3' suffix for the antisense oligo (default: C)
+  --sense-prefix            5' prefix for the sense oligo (default: CACCG)
+  --antisense-prefix        5' prefix for the antisense oligo (default: AAAC)
+  --antisense-suffix        3' suffix for the antisense oligo (default: C)
 ```
 
 ---

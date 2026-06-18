@@ -618,9 +618,9 @@ def build_parser() -> argparse.ArgumentParser:
     # --- Column / oligo overrides ---
     p.add_argument("--seq-col",    default="sgRNA_seq", help="Column name for sgRNA sequences.")
     p.add_argument("--id-col",     default="sgRNA_id",  help="Column name for sgRNA identifiers.")
-    p.add_argument("--top-prefix", default="CACCG",     help="5' prefix for top (sense) oligo.")
-    p.add_argument("--bot-prefix", default="AAAC",      help="5' prefix for bottom (antisense) oligo.")
-    p.add_argument("--bot-suffix", default="C",         help="3' suffix for bottom (antisense) oligo.")
+    p.add_argument("--sense-prefix",     default="CACCG", help="5' prefix for the sense oligo.")
+    p.add_argument("--antisense-prefix", default="AAAC",  help="5' prefix for the antisense oligo.")
+    p.add_argument("--antisense-suffix", default="C",     help="3' suffix for the antisense oligo.")
 
     return p
 
@@ -655,9 +655,9 @@ def main(argv=None):
     rows = add_cloning_oligos(
         rows,
         seq_col=args.seq_col,
-        top_prefix=args.top_prefix,
-        bot_prefix=args.bot_prefix,
-        bot_suffix=args.bot_suffix,
+        top_prefix=args.sense_prefix,
+        bot_prefix=args.antisense_prefix,
+        bot_suffix=args.antisense_suffix,
     )
 
     # --- IDT Excel (always) ---
