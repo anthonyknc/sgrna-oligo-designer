@@ -1,0 +1,11 @@
+[workspace]
+name = "sgrna-oligo-designer"
+version = "0.1.0"
+description = "BsmBI/Golden Gate sgRNA oligo designer with IDT order form and plasmid GenBank output"
+channels = ["conda-forge", "bioconda"]
+platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
+
+[dependencies]
+python = ">=3.12"
+openpyxl = "*"
+biopython = "*"
