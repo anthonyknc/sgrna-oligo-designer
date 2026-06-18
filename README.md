@@ -255,8 +255,13 @@ If you use this tool in your research, please cite it as:
 > GitHub: https://github.com/anthonyknc/sgrna-oligo-designer
 
 If you use our in-house plasmid, ipUSEPR, please cit it as:
-> Yang, L.<sup>#</sup>, Chan, A.K.N.<sup>#</sup>, Miyashita, K.<sup>#</sup>, Delaney, C.D., Wang, X., Li, H., Pokharel, S.P., Li, S., Li, M., Xu, X., et al. (2021). High-resolution characterization of gene function using single-cell CRISPR tiling screen. Nat Commun 12, 4063. 10.1038/s41467-021-24324-0. (<sup>#</sup>Co-first authors)
-
+> Yang, L.<sup>#</sup>, Chan, A.K.N.<sup>#</sup>, Miyashita, K.<sup>#</sup>, Delaney, C.D., Wang, X., Li, H., Pokharel, S.P., Li, S., Li, M., Xu, X., et al. (2021). High-resolution characterization of gene function using single-cell CRISPR tiling screen. Nat Commun *12*, 4063. 10.1038/s41467-021-24324-0. (<sup>#</sup>Co-first authors)
+> Liu, Q., Chan, A.K.N., Chang, W.H., Yang, L., Pokharel, S.P., Miyashita, K., Mattson, N., Xu, X., Li, M., Lu, W., et al. (2022). 3-Ketodihydrosphingosine reductase maintains ER homeostasis and unfolded protein response in leukemia. Leukemia *36*, 100–110. 10.1038/s41375-021-01378-z.
+> Xu, X., Chan, A.K.N., Li, M., Liu, Q., Mattson, N., Pangeni Pokharel, S., Chang, W.H., Yuan, Y.C., Wang, J., Moore, R.E., et al. (2022). ACTR5 controls CDKN2A and tumor progression in an INO80-independent manner. Sci Adv *8*, eadc8911. 10.1126/sciadv.adc8911.
+> Li, M., Yang, L., Chan, A.K.N., Pokharel, S.P., Liu, Q., Mattson, N., Xu, X., Chang, W.H., Miyashita, K., Singh, P., et al. (2023). Epigenetic Control of Translation Checkpoint and Tumor Progression via RUVBL1-EEF1A1 Axis. Adv Sci (Weinh) *10*, e2206584. 10.1002/advs.202206584.
+> Chan, A.K.N., Han, L., Delaney, C.D., Wang, X., Mukhaleva, E., Li, M., Yang, L., Pokharel, S.P., Mattson, N., Garcia, M., et al. (2024). Therapeutic targeting Tudor domains in leukemia via CRISPR-Scan Assisted Drug Discovery. Sci Adv *10*, eadk3127. 10.1126/sciadv.adk3127.
+> Mattson, N.M., Chan, A.K.N., Miyashita, K., Mukhaleva, E., Chang, W.H., Yang, L., Ma, N., Wang, Y., Pokharel, S.P., Li, M., et al. (2024). A novel class of inhibitors that disrupts the stability of integrin heterodimers identified by CRISPR-tiling-instructed genetic screens. Nat Struct Mol Biol *31*, 465–475. 10.1038/s41594-024-01211-y.
+> Zhang, L., Zhang, H., Wang, T.Y., Li, M., Chan, A.K.N., Kang, H., Foong, L.C., Liu, Q., Pokharel, S.P., Mattson, N.M., et al. (2025). Nuclear Control of Mitochondrial Homeostasis and Venetoclax Efficacy in AML via COX4I1. Adv Sci (Weinh) *12*, e2404620. 10.1002/advs.202404620.
 
 ---
 
