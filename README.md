@@ -11,7 +11,7 @@ Given a list of sgRNA sequences, it generates:
 ## What you need before starting
 
 - **Python 3.12 or later** — [download here](https://www.python.org/downloads/)
-- **pixi** (recommended) — a fast, easy environment manager for scientific Python. [Install here](https://pixi.sh/latest/)
+- **pixi** (recommended) — a fast, modern, and reproducible package manager. [Install here](https://pixi.sh/latest/)
 - Or, if you prefer pip: `pip3 install openpyxl biopython`
 
 ---
