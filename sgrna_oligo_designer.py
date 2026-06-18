@@ -470,6 +470,38 @@ def resolve_gb_dir(args_gb_output: Path | None, input_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
+# FASTA helper
+# ---------------------------------------------------------------------------
+
+def read_fasta_sequence(path: Path) -> str:
+    """
+    Read the first sequence from a FASTA file and return it as a plain string.
+    Header lines (starting with '>') and whitespace are stripped.
+
+    Parameters
+    ----------
+    path : Path
+        Path to the FASTA file.
+
+    Returns
+    -------
+    str
+        Concatenated sequence of the first FASTA record, whitespace removed.
+    """
+    seq_lines = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            if line.startswith(">"):
+                if seq_lines:
+                    break       # stop after first record
+                continue
+            seq_lines.append(line.strip())
+    if not seq_lines:
+        raise ValueError(f"No sequence found in FASTA file: {path}")
+    return "".join(seq_lines)
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
@@ -507,7 +539,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     gb.add_argument(
         "--stuffer", default=DEFAULT_STUFFER,
-        help="Placeholder sequence in the vector to replace with the sgRNA 20-mer.",
+        help=(
+            "Placeholder sequence to replace with the sgRNA 20-mer. "
+            "Accepts either a raw sequence string or a path to a FASTA file "
+            "(auto-detected — if the value is an existing file, it is read as FASTA)."
+        ),
     )
     gb.add_argument(
         "--multi-gb", action="store_true",
@@ -575,7 +611,11 @@ def main(argv=None):
         )
         gb_dir      = resolve_gb_dir(args.gb_output, input_path)
         vector_name  = args.vector_name if args.vector_name else args.vector.stem
-        stuffer_seq  = "".join(args.stuffer.split())
+        stuffer_path = Path(args.stuffer)
+        if stuffer_path.exists():
+            stuffer_seq = read_fasta_sequence(stuffer_path)
+        else:
+            stuffer_seq = "".join(args.stuffer.split())
         write_gb_files(
             records,
             output_dir=gb_dir,
