@@ -54,7 +54,7 @@ See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use 
 
 ## Quick start examples
 
-The following examples use the provided [`example input files`](example_inputs/) and reproduce the
+The following examples use the provided example input files and reproduce the
 outputs in [`example_outputs/`](example_outputs/).
 
 ### Example 1 — ipUSEPR vector (Excel input)
