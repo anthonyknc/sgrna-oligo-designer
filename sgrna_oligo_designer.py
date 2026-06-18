@@ -1,8 +1,8 @@
 """
 sgrna_oligo_designer.py
 ------------------------
-Generates annealing oligo pairs for sgRNA cloning from a spreadsheet,
-and produces a ready-to-upload IDT bulk order Excel file by default.
+Generates annealing oligo pairs for sgRNA cloning from a spreadsheet
+and writes a ready-to-upload IDT bulk order Excel file.
 
 Dependencies: openpyxl only (stdlib csv/pathlib handle everything else).
 
@@ -10,24 +10,18 @@ Default parameters target the ipUSEPR vector (BsmBI / U6 promoter):
   - Top oligo  : 5'-CACCG-{sgRNA_seq}-3'
   - Bottom oligo: 5'-AAAC-{rc(sgRNA_seq)}C-3'
 
-Usage (CLI):
-    # Default: generates both CSV and IDT Excel
+Usage:
+    # Default: IDT Excel written next to input file
     python sgrna_oligo_designer.py input.xlsx
 
-    # Custom output directory (both files land there)
+    # Custom output directory
     python sgrna_oligo_designer.py input.xlsx --output /path/to/results/
 
-    # CSV only, skip IDT file
-    python sgrna_oligo_designer.py input.xlsx --no-idt
+    # Custom output filename
+    python sgrna_oligo_designer.py input.xlsx --output /path/to/my_order_IDT.xlsx
 
     # Custom vector overrides
     python sgrna_oligo_designer.py input.xlsx --top-prefix CACC --bot-prefix AAAC --bot-suffix ""
-
-Usage (Python):
-    from sgrna_oligo_designer import add_cloning_oligos, write_idt_excel
-
-    rows = add_cloning_oligos(rows)                     # ipUSEPR defaults
-    write_idt_excel(rows, Path("my_order_IDT.xlsx"))    # IDT-ready Excel
 """
 
 import argparse
@@ -176,20 +170,6 @@ def read_input(path: Path) -> list[dict]:
         raise ValueError(f"Unsupported file type: '{suffix}'. Use .xlsx, .csv, or .tsv")
 
 
-def write_csv_output(rows: list[dict], path: Path) -> None:
-    """Write full oligo rows to a flat CSV."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not rows:
-        path.write_text("")
-        print(f"Saved → {path} (empty)")
-        return
-    with open(path, "w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-    print(f"Saved → {path}")
-
-
 def write_idt_excel(idt_rows: list[dict], path: Path) -> None:
     """
     Write IDT-formatted rows to Excel, replicating the official IDT bulk
@@ -225,26 +205,20 @@ def write_idt_excel(idt_rows: list[dict], path: Path) -> None:
     print(f"Saved → {path}")
 
 
-def resolve_output_path(args_output: Path | None, input_path: Path, suffix: str) -> Path:
+def resolve_output_path(args_output: Path | None, input_path: Path) -> Path:
     """
-    Resolve an output path given the --output argument, input path, and
-    a filename suffix (e.g. '_oligos.csv' or '_oligos_IDT.xlsx').
-    Handles three cases:
-      - No --output:           same directory as input, default filename
+    Resolve the IDT Excel output path.
+      - No --output:             same directory as input, default filename
       - Directory / trailing slash: that directory, default filename
-      - Explicit file path:    used as-is (suffix ignored for CSV, swapped for IDT)
+      - Explicit .xlsx path:     used as-is
     """
-    default_name = input_path.stem + suffix
+    default_name = input_path.stem + "_oligos_IDT.xlsx"
     if args_output is None:
         return input_path.with_name(default_name)
-    elif args_output.is_dir() or str(args_output).endswith(("/", "\\")):
-        return args_output / default_name
-    elif args_output.suffix.lower() not in {".csv", ".xlsx"}:
-        return args_output / default_name
-    else:
-        if suffix.endswith(".xlsx"):
-            return args_output.with_name(args_output.stem + "_IDT.xlsx")
+    elif args_output.suffix.lower() == ".xlsx":
         return args_output
+    else:
+        return args_output / default_name
 
 
 # ---------------------------------------------------------------------------
@@ -255,8 +229,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="sgrna_oligo_designer",
         description=(
-            "Generate BsmBI/Golden Gate annealing oligos from an sgRNA spreadsheet. "
-            "Produces a flat CSV and an IDT bulk-order Excel file by default."
+            "Generate BsmBI/Golden Gate annealing oligos from an sgRNA spreadsheet "
+            "and write a ready-to-upload IDT bulk order Excel file."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -267,14 +241,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--output", "-o", type=Path, default=None,
         help=(
-            "Output directory or full CSV path. "
-            "IDT Excel is written alongside with '_IDT.xlsx' suffix. "
-            "Default: same directory as input."
+            "Output directory or explicit .xlsx path. "
+            "Default: same directory as input, '<input>_oligos_IDT.xlsx'."
         ),
-    )
-    p.add_argument(
-        "--no-idt", action="store_true",
-        help="Skip IDT Excel output and generate CSV only.",
     )
     p.add_argument("--seq-col",    default="sgRNA_seq", help="Column name for sgRNA sequences")
     p.add_argument("--id-col",     default="sgRNA_id",  help="Column name for sgRNA identifiers")
@@ -293,10 +262,8 @@ def main(argv=None):
         print(f"Error: file not found — {input_path}", file=sys.stderr)
         sys.exit(1)
 
-    csv_path = resolve_output_path(args.output, input_path, "_oligos.csv")
-    idt_path = resolve_output_path(args.output, input_path, "_oligos_IDT.xlsx")
+    idt_path = resolve_output_path(args.output, input_path)
 
-    # Read, process
     rows = read_input(input_path)
     rows = add_cloning_oligos(
         rows,
@@ -306,15 +273,9 @@ def main(argv=None):
         bot_suffix=args.bot_suffix,
     )
 
-    # Write CSV (always)
-    write_csv_output(rows, csv_path)
+    idt_rows = build_idt_rows(rows, id_col=args.id_col)
+    write_idt_excel(idt_rows, idt_path)
 
-    # Write IDT Excel (default, unless --no-idt)
-    if not args.no_idt:
-        idt_rows = build_idt_rows(rows, id_col=args.id_col)
-        write_idt_excel(idt_rows, idt_path)
-
-    # Summary
     n = len(rows)
     print(f"Processed {n} sgRNA sequences → {n * 2} oligos to order ({n} top + {n} bottom)")
 
