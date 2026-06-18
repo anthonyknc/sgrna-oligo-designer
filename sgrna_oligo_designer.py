@@ -1,30 +1,38 @@
 """
 sgrna_oligo_designer.py
 ------------------------
-Generates annealing oligo pairs for sgRNA cloning from a spreadsheet
-and writes a ready-to-upload IDT bulk order Excel file.
+Generates annealing oligo pairs for sgRNA cloning from a spreadsheet,
+writes a ready-to-upload IDT bulk order Excel file, and optionally
+produces annotated full-plasmid GenBank files for sequencing verification.
 
-Dependencies: openpyxl only (stdlib csv/pathlib handle everything else).
+Dependencies: openpyxl (always), biopython (only for .gb output).
 
 Default parameters target the ipUSEPR vector (BsmBI / U6 promoter):
   - Top oligo  : 5'-CACCG-{sgRNA_seq}-3'
   - Bottom oligo: 5'-AAAC-{rc(sgRNA_seq)}C-3'
 
 Usage:
-    # Default: IDT Excel written next to input file
+    # IDT Excel only (no biopython required)
     python sgrna_oligo_designer.py input.xlsx
 
-    # Custom output directory
-    python sgrna_oligo_designer.py input.xlsx --output /path/to/results/
+    # IDT Excel + one .gb per sgRNA (default)
+    python sgrna_oligo_designer.py input.xlsx --vector empty_vector.gb
 
-    # Custom output filename
-    python sgrna_oligo_designer.py input.xlsx --output /path/to/my_order_IDT.xlsx
+    # IDT Excel + single combined .gb
+    python sgrna_oligo_designer.py input.xlsx --vector empty_vector.gb --multi-gb
+
+    # Custom stuffer sequence in the vector
+    python sgrna_oligo_designer.py input.xlsx --vector empty_vector.gb --stuffer ATCGATCGATCGATCGATCG
+
+    # Custom output locations
+    python sgrna_oligo_designer.py input.xlsx --output results/ --vector empty_vector.gb --gb-output results/plasmids/
 
     # Custom vector overrides
     python sgrna_oligo_designer.py input.xlsx --top-prefix CACC --bot-prefix AAAC --bot-suffix ""
 """
 
 import argparse
+import copy
 import csv
 import sys
 from pathlib import Path
@@ -39,9 +47,11 @@ IDT_SCALE      = "25nm"
 IDT_PURIF      = "STD"
 IDT_COL_WIDTHS = {"A": 12.54, "B": 41.54, "C": 10.18, "D": 18.82}
 
+DEFAULT_STUFFER = "NNNNNNNNNNNNNNNNNNNN"   # 20 N's — common vector placeholder
+
 
 # ---------------------------------------------------------------------------
-# Core logic
+# Core logic — oligo design
 # ---------------------------------------------------------------------------
 
 _COMPLEMENT = str.maketrans("ACGTacgt", "TGCAtgca")
@@ -87,12 +97,10 @@ def add_cloning_oligos(
         raise ValueError(
             f"Column '{seq_col}' not found. Available: {list(rows[0].keys())}"
         )
-
     for row in rows:
         seq = row[seq_col]
         row["oligo_top"]    = top_prefix + seq
         row["oligo_bottom"] = bot_prefix + reverse_complement(seq) + bot_suffix
-
     return rows
 
 
@@ -137,6 +145,237 @@ def build_idt_rows(
 
 
 # ---------------------------------------------------------------------------
+# Core logic — GenBank plasmid construction
+# ---------------------------------------------------------------------------
+
+def read_vector_gb(path: Path):
+    """
+    Parse an empty vector GenBank file.
+
+    Parameters
+    ----------
+    path : Path
+        Path to the .gb / .gbk file.
+
+    Returns
+    -------
+    Bio.SeqRecord.SeqRecord
+        Parsed vector record with sequence and features.
+    """
+    from Bio import SeqIO
+    return SeqIO.read(path, "genbank")
+
+
+def validate_stuffer(vector_record, stuffer_seq: str) -> int:
+    """
+    Locate the stuffer sequence in the vector. Must appear exactly once.
+
+    Parameters
+    ----------
+    vector_record : Bio.SeqRecord.SeqRecord
+        Parsed empty vector.
+    stuffer_seq : str
+        Placeholder sequence to find and replace.
+
+    Returns
+    -------
+    int
+        0-based start position of the stuffer in the vector sequence.
+
+    Raises
+    ------
+    ValueError
+        If the stuffer is absent or appears more than once.
+    """
+    vector_seq    = str(vector_record.seq).upper()
+    stuffer_upper = stuffer_seq.upper()
+
+    positions, start = [], 0
+    while (pos := vector_seq.find(stuffer_upper, start)) != -1:
+        positions.append(pos)
+        start = pos + 1
+
+    if len(positions) == 0:
+        raise ValueError(
+            f"Stuffer '{stuffer_seq}' not found in vector '{vector_record.name}'. "
+            "Check --stuffer matches the placeholder in your .gb file."
+        )
+    if len(positions) > 1:
+        raise ValueError(
+            f"Stuffer '{stuffer_seq}' found {len(positions)} times in vector "
+            f"at positions {positions}. Stuffer must be unique."
+        )
+    return positions[0]
+
+
+def _shift_feature(feature, delta: int):
+    """
+    Return a copy of a BioPython SeqFeature with coordinates shifted by delta.
+    Handles both simple FeatureLocation and CompoundLocation (e.g. join()).
+    """
+    from Bio.SeqFeature import FeatureLocation, CompoundLocation
+
+    new_feat = copy.deepcopy(feature)
+    loc      = feature.location
+
+    if isinstance(loc, CompoundLocation):
+        new_feat.location = CompoundLocation(
+            [FeatureLocation(p.start + delta, p.end + delta, p.strand)
+             for p in loc.parts],
+            operator=loc.operator,
+        )
+    else:
+        new_feat.location = FeatureLocation(
+            loc.start + delta, loc.end + delta, loc.strand
+        )
+    return new_feat
+
+
+def insert_sgrna(
+    vector_record,
+    stuffer_seq: str,
+    sgrna_seq: str,
+    sgrna_id: str,
+):
+    """
+    Replace the stuffer with the raw 20-mer sgRNA sequence and annotate it.
+
+    The stuffer is replaced in-place; all vector features downstream of the
+    insertion site are coordinate-shifted if stuffer and sgRNA lengths differ
+    (typically they are identical at 20 bp, so no shift is needed).
+    A new misc_RNA feature labelled with sgrna_id is added at the insertion site.
+
+    Parameters
+    ----------
+    vector_record : Bio.SeqRecord.SeqRecord
+        Parsed empty vector (not modified in-place).
+    stuffer_seq : str
+        Placeholder sequence to replace.
+    sgrna_seq : str
+        Raw 20-mer sgRNA sequence (no PAM, no overhangs).
+    sgrna_id : str
+        Identifier for the sgRNA; used as the feature label and record ID.
+
+    Returns
+    -------
+    Bio.SeqRecord.SeqRecord
+        New record with sgRNA inserted and annotated.
+    """
+    from Bio.Seq import Seq
+    from Bio.SeqFeature import SeqFeature, FeatureLocation
+
+    insert_start = validate_stuffer(vector_record, stuffer_seq)
+    insert_end   = insert_start + len(stuffer_seq)
+    delta        = len(sgrna_seq) - len(stuffer_seq)
+
+    # Build new sequence
+    old_seq = str(vector_record.seq)
+    new_seq = old_seq[:insert_start] + sgrna_seq.upper() + old_seq[insert_end:]
+
+    # Deep copy record, update sequence and metadata
+    new_record             = copy.deepcopy(vector_record)
+    new_record.seq         = Seq(new_seq)
+    new_record.id          = sgrna_id
+    new_record.name        = sgrna_id[:16]   # LOCUS name field: max 16 chars
+    new_record.description = (
+        f"{sgrna_id} cloned into {vector_record.name.strip()}"
+    )
+
+    # Shift downstream features if insertion changes total length
+    if delta != 0:
+        new_record.features = [
+            _shift_feature(f, delta) if f.location.start >= insert_end else f
+            for f in new_record.features
+        ]
+
+    # Annotate the inserted sgRNA
+    new_record.features.append(
+        SeqFeature(
+            FeatureLocation(insert_start, insert_start + len(sgrna_seq), strand=1),
+            type="misc_RNA",
+            qualifiers={
+                "label": [sgrna_id],
+                "note":  [f"sgRNA sequence: {sgrna_seq}"],
+                "gene":  [sgrna_id],
+            },
+        )
+    )
+
+    return new_record
+
+
+def build_plasmid_records(
+    rows: list[dict],
+    vector_record,
+    stuffer_seq: str,
+    seq_col: str = "sgRNA_seq",
+    id_col: str  = "sgRNA_id",
+) -> list:
+    """
+    Generate one annotated SeqRecord per sgRNA row.
+
+    Parameters
+    ----------
+    rows : list[dict]
+        Rows with sgRNA_id and sgRNA_seq keys.
+    vector_record : Bio.SeqRecord.SeqRecord
+        Parsed empty vector.
+    stuffer_seq : str
+        Placeholder sequence to replace in the vector.
+    seq_col : str
+        Key holding raw sgRNA sequences.
+    id_col : str
+        Key holding sgRNA identifiers.
+
+    Returns
+    -------
+    list[Bio.SeqRecord.SeqRecord]
+        One record per sgRNA with the stuffer replaced and feature annotated.
+    """
+    return [
+        insert_sgrna(vector_record, stuffer_seq, row[seq_col], row[id_col])
+        for row in rows
+    ]
+
+
+def write_gb_files(
+    records: list,
+    output_dir: Path,
+    multi_gb: bool = False,
+    combined_stem: str = "combined_plasmids",
+) -> None:
+    """
+    Write GenBank files — one per sgRNA (default) or a single combined file.
+
+    Parameters
+    ----------
+    records : list[Bio.SeqRecord.SeqRecord]
+        Annotated plasmid records to write.
+    output_dir : Path
+        Directory for output .gb files.
+    multi_gb : bool
+        If True, write all records into a single combined .gb file.
+    combined_stem : str
+        Filename stem for the combined file (used when multi_gb=True).
+    """
+    from Bio import SeqIO
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if multi_gb:
+        out_path = output_dir / f"{combined_stem}.gb"
+        with open(out_path, "w") as fh:
+            SeqIO.write(records, fh, "genbank")
+        print(f"Saved → {out_path}")
+    else:
+        for record in records:
+            out_path = output_dir / f"{record.id}_plasmid.gb"
+            with open(out_path, "w") as fh:
+                SeqIO.write([record], fh, "genbank")
+            print(f"Saved → {out_path}")
+
+
+# ---------------------------------------------------------------------------
 # I/O helpers
 # ---------------------------------------------------------------------------
 
@@ -149,12 +388,12 @@ def read_input(path: Path) -> list[dict]:
 
     if suffix in {".xlsx", ".xlsm", ".xls"}:
         import openpyxl
-        wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-        ws = wb.active
+        wb       = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        ws       = wb.active
         rows_iter = ws.iter_rows(values_only=True)
-        headers = [str(h) for h in next(rows_iter)]
-        rows = [dict(zip(headers, (str(v) if v is not None else "" for v in row)))
-                for row in rows_iter]
+        headers  = [str(h) for h in next(rows_iter)]
+        rows     = [dict(zip(headers, (str(v) if v is not None else "" for v in row)))
+                    for row in rows_iter]
         wb.close()
         return rows
 
@@ -184,20 +423,17 @@ def write_idt_excel(idt_rows: list[dict], path: Path) -> None:
     ws = wb.active
     ws.title = "Sheet1"
 
-    # Header row — bold Calibri, matching IDT template exactly
     header_font = Font(name="Calibri", bold=True)
     for col_idx, col_name in enumerate(IDT_COLUMNS, start=1):
         cell = ws.cell(row=1, column=col_idx, value=col_name)
         cell.font = header_font
 
-    # Data rows
     data_font = Font(name="Calibri")
     for row_idx, row in enumerate(idt_rows, start=2):
         for col_idx, col_name in enumerate(IDT_COLUMNS, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=row[col_name])
             cell.font = data_font
 
-    # Column widths — preserved from original IDT template
     for col_letter, width in IDT_COL_WIDTHS.items():
         ws.column_dimensions[col_letter].width = width
 
@@ -205,7 +441,7 @@ def write_idt_excel(idt_rows: list[dict], path: Path) -> None:
     print(f"Saved → {path}")
 
 
-def resolve_output_path(args_output: Path | None, input_path: Path) -> Path:
+def resolve_idt_path(args_output: Path | None, input_path: Path) -> Path:
     """
     Resolve the IDT Excel output path.
       - No --output:             same directory as input, default filename
@@ -221,6 +457,14 @@ def resolve_output_path(args_output: Path | None, input_path: Path) -> Path:
         return args_output / default_name
 
 
+def resolve_gb_dir(args_gb_output: Path | None, input_path: Path) -> Path:
+    """
+    Resolve the output directory for .gb files.
+    Defaults to the same directory as the input file.
+    """
+    return args_gb_output if args_gb_output is not None else input_path.parent
+
+
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
@@ -229,41 +473,71 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="sgrna_oligo_designer",
         description=(
-            "Generate BsmBI/Golden Gate annealing oligos from an sgRNA spreadsheet "
-            "and write a ready-to-upload IDT bulk order Excel file."
+            "Generate BsmBI/Golden Gate annealing oligos from an sgRNA spreadsheet, "
+            "write a ready-to-upload IDT bulk order Excel file, and optionally produce "
+            "annotated full-plasmid GenBank files for sequencing verification."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+
+    # --- Input ---
     p.add_argument(
         "input", type=Path,
-        help="Input file (.xlsx, .csv, or .tsv)",
+        help="Input file (.xlsx, .csv, or .tsv) with sgRNA_id and sgRNA_seq columns.",
     )
+
+    # --- IDT Excel output ---
     p.add_argument(
         "--output", "-o", type=Path, default=None,
         help=(
-            "Output directory or explicit .xlsx path. "
+            "Output directory or explicit .xlsx path for the IDT order form. "
             "Default: same directory as input, '<input>_IDT_orderForm.xlsx'."
         ),
     )
-    p.add_argument("--seq-col",    default="sgRNA_seq", help="Column name for sgRNA sequences")
-    p.add_argument("--id-col",     default="sgRNA_id",  help="Column name for sgRNA identifiers")
-    p.add_argument("--top-prefix", default="CACCG",     help="5' prefix for top (sense) oligo")
-    p.add_argument("--bot-prefix", default="AAAC",      help="5' prefix for bottom (antisense) oligo")
-    p.add_argument("--bot-suffix", default="C",         help="3' suffix for bottom (antisense) oligo")
+
+    # --- GenBank options ---
+    gb = p.add_argument_group("GenBank options (require --vector and biopython)")
+    gb.add_argument(
+        "--vector", "-v", type=Path, default=None,
+        help="Empty vector GenBank file (.gb / .gbk). Required for .gb output.",
+    )
+    gb.add_argument(
+        "--stuffer", default=DEFAULT_STUFFER,
+        help="Placeholder sequence in the vector to replace with the sgRNA 20-mer.",
+    )
+    gb.add_argument(
+        "--multi-gb", action="store_true",
+        help="Write all plasmid records into a single combined .gb file instead of one per sgRNA.",
+    )
+    gb.add_argument(
+        "--gb-output", type=Path, default=None,
+        help="Output directory for .gb files. Default: same directory as input.",
+    )
+
+    # --- Column / oligo overrides ---
+    p.add_argument("--seq-col",    default="sgRNA_seq", help="Column name for sgRNA sequences.")
+    p.add_argument("--id-col",     default="sgRNA_id",  help="Column name for sgRNA identifiers.")
+    p.add_argument("--top-prefix", default="CACCG",     help="5' prefix for top (sense) oligo.")
+    p.add_argument("--bot-prefix", default="AAAC",      help="5' prefix for bottom (antisense) oligo.")
+    p.add_argument("--bot-suffix", default="C",         help="3' suffix for bottom (antisense) oligo.")
+
     return p
 
 
 def main(argv=None):
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args   = parser.parse_args(argv)
 
     input_path: Path = args.input
     if not input_path.exists():
-        print(f"Error: file not found — {input_path}", file=sys.stderr)
+        print(f"Error: input file not found — {input_path}", file=sys.stderr)
         sys.exit(1)
 
-    idt_path = resolve_output_path(args.output, input_path)
+    if args.vector and not args.vector.exists():
+        print(f"Error: vector file not found — {args.vector}", file=sys.stderr)
+        sys.exit(1)
 
+    # --- Read and process sgRNA table ---
     rows = read_input(input_path)
     rows = add_cloning_oligos(
         rows,
@@ -273,11 +547,40 @@ def main(argv=None):
         bot_suffix=args.bot_suffix,
     )
 
+    # --- IDT Excel (always) ---
+    idt_path = resolve_idt_path(args.output, input_path)
     idt_rows = build_idt_rows(rows, id_col=args.id_col)
     write_idt_excel(idt_rows, idt_path)
 
+    # --- GenBank files (only if --vector is provided) ---
+    if args.vector:
+        vector_record = read_vector_gb(args.vector)
+        records       = build_plasmid_records(
+            rows,
+            vector_record,
+            stuffer_seq=args.stuffer,
+            seq_col=args.seq_col,
+            id_col=args.id_col,
+        )
+        gb_dir = resolve_gb_dir(args.gb_output, input_path)
+        write_gb_files(
+            records,
+            output_dir=gb_dir,
+            multi_gb=args.multi_gb,
+            combined_stem=input_path.stem + "_plasmids_combined",
+        )
+
+    # --- Summary ---
     n = len(rows)
-    print(f"Processed {n} sgRNA sequences → {n * 2} oligos to order ({n} top + {n} bottom)")
+    gb_note = (
+        f", {n} plasmid .gb files" if args.vector and not args.multi_gb
+        else f", 1 combined plasmid .gb file" if args.vector
+        else ""
+    )
+    print(
+        f"Processed {n} sgRNA sequences → "
+        f"{n * 2} oligos to order ({n} top + {n} bottom){gb_note}"
+    )
 
 
 if __name__ == "__main__":
