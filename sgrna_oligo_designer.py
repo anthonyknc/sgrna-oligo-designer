@@ -35,6 +35,7 @@ import argparse
 import copy
 import csv
 import sys
+from collections import Counter
 from pathlib import Path
 
 
@@ -166,46 +167,96 @@ def read_vector_gb(path: Path):
     return SeqIO.read(path, "genbank")
 
 
-def validate_stuffer(vector_record, stuffer_seq: str) -> int:
+def _find_all(seq: str, pattern: str) -> list[int]:
+    """Return all 0-based start positions of pattern in seq."""
+    positions, start = [], 0
+    while (pos := seq.find(pattern, start)) != -1:
+        positions.append(pos)
+        start = pos + 1
+    return positions
+
+
+def _validate_stuffer_sequence(stuffer_seq: str) -> None:
     """
-    Locate the stuffer sequence in the vector. Must appear exactly once.
+    Validate that the stuffer is non-empty and contains only ACGT bases.
+
+    Raises
+    ------
+    ValueError
+        If the stuffer is empty or contains non-ACGT characters.
+    """
+    if not stuffer_seq:
+        raise ValueError(
+            "Stuffer sequence is empty. "
+            "Check --stuffer provides a valid sequence or non-empty FASTA file."
+        )
+    invalid = set(stuffer_seq.upper()) - set("ACGT")
+    if invalid:
+        raise ValueError(
+            f"Stuffer contains non-ACGT characters: {sorted(invalid)}. "
+            "Only standard ACGT bases are supported. "
+            "Check your --stuffer input or FASTA file."
+        )
+
+
+def validate_stuffer(vector_record, stuffer_seq: str) -> tuple[int, int]:
+    """
+    Locate the stuffer sequence in the vector across both strands.
+    Must appear exactly once across forward and reverse strands combined.
 
     Parameters
     ----------
     vector_record : Bio.SeqRecord.SeqRecord
         Parsed empty vector.
     stuffer_seq : str
-        Placeholder sequence to find and replace.
+        Placeholder sequence to find and replace (ACGT only).
 
     Returns
     -------
-    int
-        0-based start position of the stuffer in the vector sequence.
+    tuple[int, int]
+        (start_position, strand) where start_position is the 0-based position
+        on the forward strand, and strand is +1 (forward) or -1 (reverse).
 
     Raises
     ------
     ValueError
-        If the stuffer is absent or appears more than once.
+        If the stuffer is empty, non-ACGT, palindromic, absent, or non-unique.
     """
-    vector_seq    = str(vector_record.seq).upper()
-    stuffer_upper = stuffer_seq.upper()
+    _validate_stuffer_sequence(stuffer_seq)
 
-    positions, start = [], 0
-    while (pos := vector_seq.find(stuffer_upper, start)) != -1:
-        positions.append(pos)
-        start = pos + 1
+    fwd_seq     = str(vector_record.seq).upper()
+    stuffer_fwd = stuffer_seq.upper()
+    stuffer_rev = reverse_complement(stuffer_fwd)
 
-    if len(positions) == 0:
+    # Palindrome check — rc equals itself, strand is indeterminate
+    if stuffer_fwd == stuffer_rev:
         raise ValueError(
-            f"Stuffer '{stuffer_seq}' not found in vector '{vector_record.name}'. "
-            "Check --stuffer matches the placeholder in your .gb file."
+            f"Stuffer sequence is palindromic (its reverse complement equals itself). "
+            "Strand cannot be determined. "
+            "Please provide a longer, asymmetric stuffer sequence."
         )
-    if len(positions) > 1:
+
+    fwd_hits = _find_all(fwd_seq, stuffer_fwd)
+    rev_hits = _find_all(fwd_seq, stuffer_rev)
+    total    = len(fwd_hits) + len(rev_hits)
+
+    if total == 0:
         raise ValueError(
-            f"Stuffer '{stuffer_seq}' found {len(positions)} times in vector "
-            f"at positions {positions}. Stuffer must be unique."
+            f"Stuffer not found on either strand of vector '{vector_record.name}'. "
+            "Check --stuffer matches the placeholder in your .gb file. "
+            "Note: stuffers that span the circular origin are not supported."
         )
-    return positions[0]
+    if total > 1:
+        raise ValueError(
+            f"Stuffer found {total} times across both strands "
+            f"(forward: {len(fwd_hits)}, reverse: {len(rev_hits)}). "
+            "Stuffer must be unique across both strands."
+        )
+
+    if fwd_hits:
+        return fwd_hits[0], +1
+    else:
+        return rev_hits[0], -1
 
 
 def _shift_feature(feature, delta: int):
@@ -264,13 +315,16 @@ def insert_sgrna(
     from Bio.Seq import Seq
     from Bio.SeqFeature import SeqFeature, FeatureLocation
 
-    insert_start = validate_stuffer(vector_record, stuffer_seq)
-    insert_end   = insert_start + len(stuffer_seq)
-    delta        = len(sgrna_seq) - len(stuffer_seq)
+    insert_start, strand = validate_stuffer(vector_record, stuffer_seq)
+    insert_end            = insert_start + len(stuffer_seq)
+
+    # Insert the sgRNA in the correct orientation relative to the stuffer strand
+    insert_seq = sgrna_seq.upper() if strand == +1 else reverse_complement(sgrna_seq.upper())
+    delta      = len(insert_seq) - len(stuffer_seq)
 
     # Build new sequence
     old_seq = str(vector_record.seq)
-    new_seq = old_seq[:insert_start] + sgrna_seq.upper() + old_seq[insert_end:]
+    new_seq = old_seq[:insert_start] + insert_seq + old_seq[insert_end:]
 
     # Deep copy record, update sequence and metadata
     new_record             = copy.deepcopy(vector_record)
@@ -288,10 +342,10 @@ def insert_sgrna(
             for f in new_record.features
         ]
 
-    # Annotate the inserted sgRNA
+    # Annotate the inserted sgRNA on the correct strand
     new_record.features.append(
         SeqFeature(
-            FeatureLocation(insert_start, insert_start + len(sgrna_seq), strand=1),
+            FeatureLocation(insert_start, insert_start + len(insert_seq), strand=strand),
             type="misc_feature",
             qualifiers={
                 "label": [sgrna_id],
@@ -586,6 +640,18 @@ def main(argv=None):
 
     # --- Read and process sgRNA table ---
     rows = read_input(input_path)
+
+    # Validate unique sgRNA IDs
+    ids        = [row[args.id_col] for row in rows]
+    duplicates = [id_ for id_, count in Counter(ids).items() if count > 1]
+    if duplicates:
+        print(
+            f"Error: duplicate sgRNA IDs found: {duplicates}. "
+            "Each sgRNA must have a unique identifier.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     rows = add_cloning_oligos(
         rows,
         seq_col=args.seq_col,
