@@ -6,6 +6,7 @@ __pycache__/
 dist/
 build/
 .venv/
+.pixi/
 
 # Outputs (don't commit generated files)
 *_oligos.csv
