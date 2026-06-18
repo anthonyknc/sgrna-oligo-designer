@@ -40,8 +40,8 @@ Prepare a spreadsheet (Excel `.xlsx`, `.csv`, or `.tsv`) with at least these two
 
 | sgRNA_id | sgRNA_seq |
 |---|---|
-| sg_KRAS_001 | GCACTGAGCTAGCTAGCTAG |
-| sg_KRAS_002 | ATCGATCGATCGATCGATCG |
+| sg_Luc_474 | GATTCTAAAACGGATTACCA |
+| sg_tRFP657_294 | GTCACCACATACGAAGACGG |
 
 - **`sgRNA_id`** — a unique name for each sgRNA (no spaces; underscores are fine)
 - **`sgRNA_seq`** — the 20-nucleotide sgRNA sequence, **without** the PAM
@@ -59,7 +59,7 @@ outputs in [`example_outputs/`](example_outputs/).
 
 ### Example 1 — ipUSEPR vector (Excel input)
 
-The **ipUSEPR** vector is a doxycycline-inducible sgRNA expression system
+The **ipUSEPR** vector is most battle-testd sgRNA expression system in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) for individual gene pertubations and CRISPR library screens using CRISPRko/i/a/tiling. It is used with cells engineered with SpCas9 and its variants, e.g. lentiCas9-Blast (Addgene #52962)[https://www.addgene.org/52962/], Lenti-dCas9-KRAB-blast (Addgene #89567)[https://www.addgene.org/89567/], and lenti dCAS-VP64_Blast (Addgene #61425)[https://www.addgene.org/61425/], etc.
 (PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
 [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/),
 [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),
@@ -96,7 +96,7 @@ python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.csv
 
 **LentiCRISPRv2GFP** ([Addgene #82416](https://www.addgene.org/82416/)) is a
 lentiCRISPRv2 variant with a GFP reporter, useful for tracking transduced cells
-by flow cytometry. Also uses a FASTA stuffer file.
+by flow cytometry and growth competition assay. Also uses a FASTA stuffer file.
 
 ```bash
 python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.tsv \
@@ -122,7 +122,7 @@ example_outputs/
 ```
 
 **IDT order form** — open in Excel to review, then upload directly to
-[IDT's bulk order page](https://www.idtdna.com/pages/tools/bulk-input).
+[IDT's order page –> "BULK INPUT"](https://www.idtdna.com/site/order/oligoentry).
 Each sgRNA produces two oligos: a sense (`_s`) and antisense (`_a`) strand.
 
 **GenBank plasmid files** — open in SnapGene or Benchling to verify that the
