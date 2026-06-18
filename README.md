@@ -66,7 +66,7 @@ Additional columns (e.g. target gene, genomic coordinates, on-target score) are 
 
 See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use example files in all three formats.
 
-> **Note:** This script is designed for **SpCas9** sgRNAs using the **BsmBI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPRv2). For other nucleases or cloning systems, adjust the `--top-prefix`, `--bot-prefix`, and `--bot-suffix` options accordingly.
+> **Note:** This script is designed for **SpCas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPRv2). For other nucleases or cloning systems, adjust the `--top-prefix`, `--bot-prefix`, and `--bot-suffix` options accordingly.
 
 ---
 
@@ -74,7 +74,7 @@ See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use 
 
 ### Example 1 — ipUSEPR vector (Excel input)
 
-The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**F1a-**P**uromycin-**R**TagRFP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector for individual gene perturbations and CRISPR library screens (CRISPRko/i/a/tiling). It features a modified sgRNA backbone for enhanced sgRNA stability, a U6 promoter driving sgRNA expression, and an EF1a promoter driving co-expression of a puromycin resistance gene and TagRFP — enabling dual selection of transduced cells by antibiotic resistance and red fluorescence. It is used with cells stably expressing SpCas9 or its variants, such as lentiCas9-Blast ([Addgene #52962](https://www.addgene.org/52962/)), Lenti-dCas9-KRAB-blast ([Addgene #89567](https://www.addgene.org/89567/)), and lenti-dCAS-VP64-Blast ([Addgene #61425](https://www.addgene.org/61425/))
+The **ipUSEPR** (<u>i</u>mproved lentiviral <u>p</u>lasmid with <u>U</u>6-<u>s</u>gRNA-<u>E</u>F1a-<u>P</u>uromycin-<u>R</u>TagRFP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector for individual gene perturbations and CRISPR library screens (CRISPRko/i/a/tiling). It features a modified sgRNA backbone for enhanced sgRNA stability, a U6 promoter driving sgRNA expression, and an EF1a promoter driving co-expression of a puromycin resistance gene and TagRFP — enabling dual selection of transduced cells by antibiotic resistance and red fluorescence. It also carries an ampicillin resistance gene for plasmid amplification in *Escherichia coli*. It is used with cells stably expressing SpCas9 or its variants, such as lentiCas9-Blast ([Addgene #52962](https://www.addgene.org/52962/)), Lenti-dCas9-KRAB-blast ([Addgene #89567](https://www.addgene.org/89567/)), and lenti-dCAS-VP64-Blast ([Addgene #61425](https://www.addgene.org/61425/))
 (PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
 [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/),
 [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),
@@ -212,7 +212,7 @@ optional arguments:
 
 ## Supported vectors
 
-The script works with **any** BsmBI/Golden Gate-compatible vector as long as you
+The script works with **any** *Bsm*BI/Golden Gate-compatible vector as long as you
 provide its GenBank file and the stuffer sequence to replace. The following
 vectors have been tested:
 
