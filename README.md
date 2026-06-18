@@ -247,7 +247,7 @@ python3 sgrna_oligo_designer.py input.xlsx --seq-col guide_sequence --id-col gui
 
 ---
 
-## Citation
+## Citations
 
 If you use this tool in your research, please cite it as:
 
