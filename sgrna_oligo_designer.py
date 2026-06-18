@@ -575,7 +575,7 @@ def main(argv=None):
         )
         gb_dir      = resolve_gb_dir(args.gb_output, input_path)
         vector_name  = args.vector_name if args.vector_name else args.vector.stem
-        stuffer_seq  = args.stuffer.replace(" ", "")
+        stuffer_seq  = "".join(args.stuffer.split())
         write_gb_files(
             records,
             output_dir=gb_dir,
