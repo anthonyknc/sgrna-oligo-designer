@@ -212,7 +212,7 @@ def resolve_output_path(args_output: Path | None, input_path: Path) -> Path:
       - Directory / trailing slash: that directory, default filename
       - Explicit .xlsx path:     used as-is
     """
-    default_name = input_path.stem + "_oligos_IDT.xlsx"
+    default_name = input_path.stem + "_IDT_orderForm.xlsx"
     if args_output is None:
         return input_path.with_name(default_name)
     elif args_output.suffix.lower() == ".xlsx":
@@ -242,7 +242,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--output", "-o", type=Path, default=None,
         help=(
             "Output directory or explicit .xlsx path. "
-            "Default: same directory as input, '<input>_oligos_IDT.xlsx'."
+            "Default: same directory as input, '<input>_IDT_orderForm.xlsx'."
         ),
     )
     p.add_argument("--seq-col",    default="sgRNA_seq", help="Column name for sgRNA sequences")
