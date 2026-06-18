@@ -292,7 +292,7 @@ def insert_sgrna(
     new_record.features.append(
         SeqFeature(
             FeatureLocation(insert_start, insert_start + len(sgrna_seq), strand=1),
-            type="misc_RNA",
+            type="misc_feature",
             qualifiers={
                 "label": [sgrna_id],
                 "note":  [f"sgRNA sequence: {sgrna_seq}"],
