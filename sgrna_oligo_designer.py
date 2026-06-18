@@ -131,13 +131,13 @@ def build_idt_rows(
     idt_rows = []
     for r in rows:
         idt_rows.append({
-            "Name":         f"{r[id_col]}_top",
+            "Name":         f"{r[id_col]}_s",
             "Sequence":     r["oligo_top"],
             "Scale":        IDT_SCALE,
             "Purification": IDT_PURIF,
         })
         idt_rows.append({
-            "Name":         f"{r[id_col]}_bottom",
+            "Name":         f"{r[id_col]}_a",
             "Sequence":     r["oligo_bottom"],
             "Scale":        IDT_SCALE,
             "Purification": IDT_PURIF,
