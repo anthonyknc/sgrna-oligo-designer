@@ -6,11 +6,12 @@ __pycache__/
 dist/
 build/
 .venv/
-.pixi/
 
-# Outputs (don't commit generated files)
-*_oligos.csv
-*_oligos_IDT.xlsx
+# Pixi
+.pixi/
 
 # OS
 .DS_Store
+
+# Microsoft Office temp files
+~$*
