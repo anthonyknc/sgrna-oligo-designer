@@ -1,4 +1,4 @@
-LOCUS       ipUSEPR                 7877 bp    DNA     circular SYN 17-JUN-2026
+LOCUS       ipUSEPR                 7877 bp    DNA     circular SYN 18-JUN-2026
 DEFINITION  pUSEPR-IS_Improved scaffold_Yadira Soto-Feliciano 2016-04-05.
 ACCESSION   .
 VERSION     .
@@ -8,7 +8,7 @@ SOURCE      synthetic DNA construct
 REFERENCE   1  (bases 1 to 7877)
   AUTHORS   YSF
   TITLE     Direct Submission
-  JOURNAL   Exported Jun 17, 2026 from SnapGene 8.2.2
+  JOURNAL   Exported Jun 18, 2026 from SnapGene 8.2.2
             https://www.snapgene.com
 FEATURES             Location/Qualifiers
      source          1..7877
@@ -17,7 +17,7 @@ FEATURES             Location/Qualifiers
      source          join(5283..7877,1..5282)
                      /mol_type="other DNA"
                      /organism="synthetic DNA construct"
-     promoter        60..300
+     promoter        60..308
                      /label=U6 promoter
                      /label=U6
                      /note="RNA polymerase III promoter for human U6 snRNA"
@@ -33,7 +33,7 @@ FEATURES             Location/Qualifiers
                      /label=Transcriptional start
                      /note="/feature_type=Transcriptional start"
      misc_feature    310..326
-                     /label=Clone_sgRNA_here
+                     /label=stuffer
                      /label=Clone_sgRNA_here (17 bp)
                      /note="/feature_type=Clone_sgRNA_here"
      misc_feature    327..418
