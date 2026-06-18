@@ -341,6 +341,7 @@ def build_plasmid_records(
 def write_gb_files(
     records: list,
     output_dir: Path,
+    vector_name: str,
     multi_gb: bool = False,
     combined_stem: str = "combined_plasmids",
 ) -> None:
@@ -353,6 +354,9 @@ def write_gb_files(
         Annotated plasmid records to write.
     output_dir : Path
         Directory for output .gb files.
+    vector_name : str
+        Vector name appended to each output filename.
+        Produces: {sgRNA_id}_{vector_name}.gb
     multi_gb : bool
         If True, write all records into a single combined .gb file.
     combined_stem : str
@@ -369,7 +373,7 @@ def write_gb_files(
         print(f"Saved → {out_path}")
     else:
         for record in records:
-            out_path = output_dir / f"{record.id}_plasmid.gb"
+            out_path = output_dir / f"{vector_name}_{record.id}.gb"
             with open(out_path, "w") as fh:
                 SeqIO.write([record], fh, "genbank")
             print(f"Saved → {out_path}")
@@ -513,6 +517,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--gb-output", type=Path, default=None,
         help="Output directory for .gb files. Default: same directory as input.",
     )
+    gb.add_argument(
+        "--vector-name", default=None,
+        help=(
+            "Name appended to each .gb output filename: {sgRNA_id}_{vector_name}.gb. "
+            "Default: stem of the --vector filename (e.g. 'ipUSEPR' from 'ipUSEPR.gb')."
+        ),
+    )
 
     # --- Column / oligo overrides ---
     p.add_argument("--seq-col",    default="sgRNA_seq", help="Column name for sgRNA sequences.")
@@ -558,14 +569,17 @@ def main(argv=None):
         records       = build_plasmid_records(
             rows,
             vector_record,
-            stuffer_seq=args.stuffer,
+            stuffer_seq=stuffer_seq,
             seq_col=args.seq_col,
             id_col=args.id_col,
         )
-        gb_dir = resolve_gb_dir(args.gb_output, input_path)
+        gb_dir      = resolve_gb_dir(args.gb_output, input_path)
+        vector_name  = args.vector_name if args.vector_name else args.vector.stem
+        stuffer_seq  = args.stuffer.replace(" ", "")
         write_gb_files(
             records,
             output_dir=gb_dir,
+            vector_name=vector_name,
             multi_gb=args.multi_gb,
             combined_stem=input_path.stem + "_plasmids_combined",
         )
