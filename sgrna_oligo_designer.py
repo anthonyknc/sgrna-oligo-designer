@@ -667,6 +667,14 @@ def main(argv=None):
 
     # --- GenBank files (only if --vector is provided) ---
     if args.vector:
+        # Resolve stuffer — FASTA file or raw string
+        stuffer_path = Path(args.stuffer)
+        if stuffer_path.exists():
+            stuffer_seq = read_fasta_sequence(stuffer_path)
+        else:
+            stuffer_seq = "".join(args.stuffer.split())
+
+        vector_name   = args.vector_name if args.vector_name else args.vector.stem
         vector_record = read_vector_gb(args.vector)
         records       = build_plasmid_records(
             rows,
@@ -675,13 +683,7 @@ def main(argv=None):
             seq_col=args.seq_col,
             id_col=args.id_col,
         )
-        gb_dir      = resolve_gb_dir(args.gb_output, input_path)
-        vector_name  = args.vector_name if args.vector_name else args.vector.stem
-        stuffer_path = Path(args.stuffer)
-        if stuffer_path.exists():
-            stuffer_seq = read_fasta_sequence(stuffer_path)
-        else:
-            stuffer_seq = "".join(args.stuffer.split())
+        gb_dir = resolve_gb_dir(args.gb_output, input_path)
         write_gb_files(
             records,
             output_dir=gb_dir,
