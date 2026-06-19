@@ -155,11 +155,20 @@ cleavage activity**, as single-nucleotide mismatches at the 5' end of the sgRNA
 are well tolerated by wild-type *Sp*Cas9
 ([Hsu et al., *Nat Biotechnol*, 2013](https://pubmed.ncbi.nlm.nih.gov/23873081/);
 [Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
-If your sgRNA sequence already starts with G, the extra G is still added by default
-(as the Zhang lab recommends), resulting in a 5'-GG- start — this is the standard
-convention adopted across Zhang lab and Broad Institute vectors, and the 5' extension
-is well tolerated by wild-type *Sp*Cas9
-([Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
+
+If your sgRNA sequence already starts with G, the extra G is still added by default,
+resulting in a 21-nt sgRNA with a 5'-GG- start. This follows the convention used in
+Broad Institute *Bsm*BI-based vectors (e.g., lentiGuide-Puro, Avana/Brunello
+libraries), as specified in the [official Broad GPP cloning protocol](https://portals.broadinstitute.org/gpp/public/dir/download?dirpath=protocols/production&filename=cloning_of_oligos_for_sgRNA_shRNA_nov2019.pdf),
+where the forward oligo is always designed as `5'-CACCG-[20 bp target]-3'` regardless
+of the starting nucleotide. This is also the convention we follow in our lab.
+
+> **Note for pX330/pX459 users:** The Zhang lab's original protocol for these
+> *Bbs*I-based vectors ([Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/))
+> recommends preferring targets that naturally begin with G, using the target's own G
+> as the +1 transcription start site rather than always prepending an extra G.
+> If you are using pX330/pX459, adjust `--sense-prefix` to `CACC` for sgRNAs
+> that already start with G.
 
 > **Note for high-fidelity Cas9 variants:** eSpCas9 and SpCas9-HF1 are more
 > sensitive to mismatches throughout the sgRNA, including at the 5' end. When
