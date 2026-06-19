@@ -42,12 +42,6 @@ Before using this tool, you need a list of 20-nucleotide sgRNA target sequences 
 
 CRISPRpick is free to use and requires no account. Simply enter your gene name or transcript ID, select your genome and Cas9 system (e.g. *Sp*Cas9), and the tool will return ranked sgRNA sequences with on-target efficiency scores. Select your top candidates (typically 3–6 per gene) and export them to a spreadsheet, then reformat the exported data to match the input format shown in the examples at [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/).
 
-If you use CRISPRpick designs in a publication, please acknowledge:
-> *"Guide designs provided by the CRISPRpick web tool of the GPP at the Broad Institute"*
-> and cite PMID [36068235](https://pubmed.ncbi.nlm.nih.gov/36068235/) for *Sp*Cas9 designs, or PMID [32661438](https://pubmed.ncbi.nlm.nih.gov/32661438/) for Cas12a designs.
-
-Other popular sgRNA design tools include [CHOPCHOP](https://chopchop.cbu.uib.no) and [CRISPOR](http://crispor.tefor.net).
-
 ---
 
 ## Step 2 — Prepare your input file
@@ -66,7 +60,7 @@ Additional columns (e.g. target gene, genomic coordinates, on-target score) are 
 
 See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use example files in all three formats.
 
-> **Note:** The default oligo design targets ***Sp*Cas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPRv2). For other cloning systems with different overhangs, use the `--sense-prefix`, `--antisense-prefix`, and `--antisense-suffix` flags as described in the [**Using with other vectors**](#using-with-other-vectors-and-cloning-systems) section below.
+> **Note:** The default oligo design targets ***Sp*Cas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPRv2, LentiCRISPRv2GFP, etc). For other cloning systems with different overhangs, use the `--sense-prefix`, `--antisense-prefix`, and `--antisense-suffix` flags as described in the [**Using with other vectors**](#using-with-other-vectors-and-cloning-systems) section below.
 
 ---
 
@@ -74,7 +68,7 @@ See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use 
 
 ### Example 1 — ipUSEPR vector (Excel input)
 
-The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**F1a-**P**uroR-Tag**R**FP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector for individual gene perturbations and CRISPR library screens (CRISPRko/i/a/tiling). It features a modified sgRNA backbone for enhanced sgRNA stability, a U6 promoter driving sgRNA expression, and an EF1a promoter co-driving a puromycin resistance gene and TagRFP — enabling dual selection of transduced cells by antibiotic resistance and red fluorescence. It also carries an ampicillin resistance gene for plasmid propagation in *Escherichia coli*. It is used with cells stably expressing *Sp*Cas9 or its variants, such as lentiCas9-Blast ([Addgene #52962](https://www.addgene.org/52962/)), Lenti-dCas9-KRAB-blast ([Addgene #89567](https://www.addgene.org/89567/)), and lenti-dCAS-VP64-Blast ([Addgene #61425](https://www.addgene.org/61425/))
+The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**F1a-**P**uroR-Tag**R**FP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector for individual gene perturbations and CRISPR library screens (CRISPRko/i/a/tiling). It features a modified sgRNA backbone for enhanced sgRNA stability, a human U6 promoter driving sgRNA expression, and an EF1a promoter co-driving a puromycin resistance gene and TagRFP — enabling convenient selection of transduced cells by puromycin and rapid determination of transduction efficiency by flow cytometry. It also carries an ampicillin resistance gene for plasmid propagation in *Escherichia coli*. It is used with cells stably expressing *Sp*Cas9 or its variants, such as lentiCas9-Blast ([Addgene #52962](https://www.addgene.org/52962/)), Lenti-dCas9-KRAB-blast ([Addgene #89567](https://www.addgene.org/89567/)), and lenti-dCAS-VP64-Blast ([Addgene #61425](https://www.addgene.org/61425/))
 (PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
 [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/),
 [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),
@@ -256,7 +250,13 @@ following vectors have been tested:
 
 | Vector | Addgene / Reference | Stuffer input | Custom flags needed? |
 |---|---|---|---|
-| ipUSEPR | PMIDs: 34210975, 34373586, 36563143, 37075745, 38394203, 38316881, 39716856 | Short string | No (defaults) |
+| ipUSEPR | PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
+[34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/),
+[36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),
+[37075745](https://pubmed.ncbi.nlm.nih.gov/37075745/),
+[38394203](https://pubmed.ncbi.nlm.nih.gov/38394203/),
+[38316881](https://pubmed.ncbi.nlm.nih.gov/38316881/),
+[39716856](https://pubmed.ncbi.nlm.nih.gov/39716856/) | Short string | No (defaults) |
 | lentiCRISPRv2 | [Addgene #52961](https://www.addgene.org/52961/) | FASTA file | No (defaults) |
 | LentiCRISPRv2GFP | [Addgene #82416](https://www.addgene.org/82416/) | FASTA file | No (defaults) |
 
