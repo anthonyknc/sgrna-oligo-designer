@@ -42,7 +42,6 @@ Before using this tool, you need a list of 20-nucleotide sgRNA target sequences 
 
 CRISPRpick is free to use and requires no account. Simply enter your gene name or transcript ID, select your genome and Cas9 system (e.g. *Sp*Cas9), and the tool will return ranked sgRNA sequences with on-target efficiency scores. Select your top candidates (typically 3–6 per gene) and export them to a spreadsheet, then reformat the exported data to match the input format shown in the examples at [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/).
 
-
 ---
 
 ## Step 2 — Prepare your input file
@@ -80,11 +79,21 @@ The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**
 The stuffer sequence is short enough to paste directly as a string.
 
 ```bash
+# One .gb file per sgRNA (default)
 python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.xlsx \
     --vector example_inputs/vector_seqs/ipUSEPR.gb \
     --stuffer GAGACGTGACCGTCTCT \
     --output example_outputs/ \
     --gb-output example_outputs/plasmids/
+
+# All sgRNAs combined into a single .gb file
+python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.xlsx \
+    --vector example_inputs/vector_seqs/ipUSEPR.gb \
+    --stuffer GAGACGTGACCGTCTCT \
+    --output example_outputs/ \
+    --multi-gb \
+    --gb-output example_outputs/plasmids/ \
+    --combined-name ipUSEPR_plasmids_combined
 ```
 
 ### Example 2 — lentiCRISPR v2 vector (CSV input)
@@ -165,7 +174,6 @@ designed as `5'-CACCG-[20 bp target]-3'` regardless of the starting nucleotide, 
 confirmed by the [Broad Institute GPP cloning protocol](https://portals.broadinstitute.org/gpp/public/dir/download?dirpath=protocols/production&filename=cloning_of_oligos_for_sgRNA_shRNA_nov2019.pdf).
 This is also the convention we follow in our lab.
 
-
 ---
 
 ## Using with other vectors and cloning systems
@@ -210,7 +218,8 @@ python3 sgrna_oligo_designer.py input.xlsx \
 ```
 usage: sgrna_oligo_designer [-h] [--output OUTPUT]
                             [--vector VECTOR] [--stuffer STUFFER]
-                            [--multi-gb] [--gb-output GB_OUTPUT]
+                            [--multi-gb] [--combined-name COMBINED_NAME]
+                            [--gb-output GB_OUTPUT]
                             [--vector-name VECTOR_NAME]
                             [--seq-col SEQ_COL] [--id-col ID_COL]
                             [--sense-prefix SENSE_PREFIX]
@@ -230,6 +239,9 @@ optional arguments:
                             (auto-detected). Default: 20 N's (NNNNNNNNNNNNNNNNNNNN)
   --multi-gb                Combine all plasmid records into a single .gb file
                             instead of one file per sgRNA
+  --combined-name           Custom filename stem for the combined .gb file (used with
+                            --multi-gb). Default: '<input>_plasmids_combined'
+                            (e.g. 'example_sgRNA_seqs_plasmids_combined.gb')
   --gb-output               Output directory for .gb plasmid files.
                             Default: same folder as the input file
   --vector-name             Custom name prepended to each plasmid filename.
