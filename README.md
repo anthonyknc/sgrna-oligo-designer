@@ -256,7 +256,7 @@ If you use this tool in your research, please cite it as:
 If you use our in-house plasmid, ipUSEPR for sgRNA cloning, please cite it as:
 > Yang, L.<sup>#</sup>, Chan, A.K.N.<sup>#</sup>, Miyashita, K.<sup>#</sup>, Delaney, C.D., Wang, X., Li, H., Pokharel, S.P., Li, S., Li, M., Xu, X., et al. (2021). High-resolution characterization of gene function using single-cell CRISPR tiling screen. Nat Commun *12*, 4063. 10.1038/s41467-021-24324-0. (<sup>#</sup>Co-first authors)
 
-If you use ipUSEPR for duo sgRNAs cloning using STAgR protocol [PMID: 29702666](https://pubmed.ncbi.nlm.nih.gov/29702666/)([Addgene #](https://www.addgene.org/102844/)), please cite it as:
+If you use ipUSEPR for duo sgRNAs cloning using [the STAgR method](https://pubmed.ncbi.nlm.nih.gov/29702666/)([Addgene #102844](https://www.addgene.org/102844/)), please cite it as:
 > Chan, A.K.N., Han, L., Delaney, C.D., Wang, X., Mukhaleva, E., Li, M., Yang, L., Pokharel, S.P., Mattson, N., Garcia, M., et al. (2024). Therapeutic targeting Tudor domains in leukemia via CRISPR-Scan Assisted Drug Discovery. Sci Adv *10*, eadk3127. 10.1126/sciadv.adk3127.
 
 ---
