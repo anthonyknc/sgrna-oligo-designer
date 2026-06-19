@@ -36,7 +36,7 @@ You are now ready to run the script.
 
 ## Step 1 — Design your sgRNA sequences with CRISPRpick
 
-Before using this tool, you need a list of 20-nucleotide sgRNA target sequences for your gene(s) of interest. We recommend **CRISPRpick** from the Broad Institute:
+Before using this tool, you need a list of 20-nucleotide sgRNA target sequences for your gene(s) of interest. We recommend **CRISPRpick** from Broad Institute:
 
 > 🔗 https://portals.broadinstitute.org/gppx/crispick/public
 
@@ -88,7 +88,7 @@ python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.xls
 
 ### Example 2 — lentiCRISPRv2 vector (CSV input)
 
-**lentiCRISPRv2** ([Addgene #52961](https://www.addgene.org/52961/)) is one of the most widely used all-in-one lentiviral CRISPR vectors. Its stuffer sequence is long (~1,700 bp), so it is provided as a FASTA file — the script detects this automatically.
+**lentiCRISPRv2** ([Addgene #52961](https://www.addgene.org/52961/)) is one of the most widely used all-in-one lentiviral CRISPR vectors. Its stuffer sequence is long (1,880 bp), so it is provided as a FASTA file — the script detects this automatically.
 
 ```bash
 python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.csv \
@@ -126,7 +126,7 @@ example_outputs/
 ```
 
 **IDT order form** — open in Excel to review, then upload directly to
-[IDT → "Order" → "Bulk Input"](https://www.idtdna.com/site/order/oligoentry).
+[IDT → Oligo Entry → "BULK INPUT"](https://www.idtdna.com/site/order/oligoentry).
 Each sgRNA produces two oligos: a sense (`_s`) and antisense (`_a`) strand.
 
 **GenBank plasmid files** — open in SnapGene or Benchling to verify that the
