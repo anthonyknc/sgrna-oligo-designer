@@ -42,6 +42,7 @@ Before using this tool, you need a list of 20-nucleotide sgRNA target sequences 
 
 CRISPRpick is free to use and requires no account. Simply enter your gene name or transcript ID, select your genome and Cas9 system (e.g. *Sp*Cas9), and the tool will return ranked sgRNA sequences with on-target efficiency scores. Select your top candidates (typically 3–6 per gene) and export them to a spreadsheet, then reformat the exported data to match the input format shown in the examples at [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/).
 
+
 ---
 
 ## Step 2 — Prepare your input file
@@ -155,9 +156,10 @@ are well tolerated by wild-type *Sp*Cas9
 ([Hsu et al., *Nat Biotechnol*, 2013](https://pubmed.ncbi.nlm.nih.gov/23873081/);
 [Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
 If your sgRNA sequence already starts with G, the extra G is still added by default
-(as the Zhang lab recommends), resulting in a 5'-GG- start — this has been shown
-to have minimal impact on on-target activity
-([Doench et al., *Nat Biotechnol*, 2016](https://pubmed.ncbi.nlm.nih.gov/26780180/)).
+(as the Zhang lab recommends), resulting in a 5'-GG- start — this is the standard
+convention adopted across Zhang lab and Broad Institute vectors, and the 5' extension
+is well tolerated by wild-type *Sp*Cas9
+([Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
 
 > **Note for high-fidelity Cas9 variants:** eSpCas9 and SpCas9-HF1 are more
 > sensitive to mismatches throughout the sgRNA, including at the 5' end. When
@@ -250,7 +252,7 @@ following vectors have been tested:
 
 | Vector | Addgene / Reference | Stuffer input | Custom flags needed? |
 |---|---|---|---|
-| ipUSEPR | PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/), [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586), [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/), [37075745](https://pubmed.ncbi.nlm.nih.gov/37075745/), [38394203](https://pubmed.ncbi.nlm.nih.gov/38394203/), [38316881](https://pubmed.ncbi.nlm.nih.gov/38316881/), [39716856](https://pubmed.ncbi.nlm.nih.gov/39716856/) | Short string | No (defaults) |
+| ipUSEPR | PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/), [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/), [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/), [37075745](https://pubmed.ncbi.nlm.nih.gov/37075745/), [38394203](https://pubmed.ncbi.nlm.nih.gov/38394203/), [38316881](https://pubmed.ncbi.nlm.nih.gov/38316881/), [39716856](https://pubmed.ncbi.nlm.nih.gov/39716856/) | Short string | No (defaults) |
 | lentiCRISPRv2 | [Addgene #52961](https://www.addgene.org/52961/) | FASTA file | No (defaults) |
 | LentiCRISPRv2GFP | [Addgene #82416](https://www.addgene.org/82416/) | FASTA file | No (defaults) |
 
