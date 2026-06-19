@@ -604,6 +604,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write all plasmid records into a single combined .gb file instead of one per sgRNA.",
     )
     gb.add_argument(
+        "--combined-name", default=None,
+        help=(
+            "Custom filename stem for the combined .gb file (used with --multi-gb). "
+            "Default: '<input>_plasmids_combined' (e.g. 'example_sgRNA_seqs_plasmids_combined.gb')."
+        ),
+    )
+    gb.add_argument(
         "--gb-output", type=Path, default=None,
         help="Output directory for .gb files. Default: same directory as input.",
     )
@@ -689,7 +696,7 @@ def main(argv=None):
             output_dir=gb_dir,
             vector_name=vector_name,
             multi_gb=args.multi_gb,
-            combined_stem=input_path.stem + "_plasmids_combined",
+            combined_stem=args.combined_name if args.combined_name else input_path.stem + "_plasmids_combined",
         )
 
     # --- Summary ---
