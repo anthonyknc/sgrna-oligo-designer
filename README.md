@@ -40,7 +40,7 @@ Before using this tool, you need a list of 20-nucleotide sgRNA sequences targeti
 
 > 🔗 https://portals.broadinstitute.org/gppx/crispick/public
 
-CRISPRpick is free to use and requires no account. Simply enter your gene name or transcript ID, select your genome, Cas9 system (e.g. *Sp*Cas9), and the tool will return ranked sgRNA sequences with on-target efficiency scores. Select your top candidates (typically 3–6 per gene) and export them to a spreadsheet that is tidied into the formats similar to [example_inputs/sgRNA_seqs](example_inputs/sgRNA_seqs).
+CRISPRpick is free to use and requires no account. Simply enter your gene name or transcript ID, select your genome, Cas9 system (e.g. *Sp*Cas9), and the tool will return ranked sgRNA sequences with on-target efficiency scores. Select your top candidates (typically 3–6 per gene) and export them to a spreadsheet. Subsequently, the spreadsheet is tidied into the formats similar to [example_inputs/sgRNA_seqs](example_inputs/sgRNA_seqs).
 
 ---
 
@@ -60,7 +60,7 @@ Additional columns (e.g. target gene, genomic coordinates, on-target score) are 
 
 See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use example files in all three formats.
 
-> **Note:** This script is designed for **SpCas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPRv2). For other nucleases or cloning systems, adjust the `--top-prefix`, `--bot-prefix`, and `--bot-suffix` options accordingly.
+> **Note:** This script is designed for ***Sp*Cas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPRv2). For other nucleases or cloning systems, adjust the `--top-prefix`, `--bot-prefix`, and `--bot-suffix` options accordingly.
 
 ---
 
@@ -68,7 +68,7 @@ See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use 
 
 ### Example 1 — ipUSEPR vector (Excel input)
 
-The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**F1a-**P**uroR-Tag**R**FP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector for individual gene perturbations and CRISPR library screens (CRISPRko/i/a/tiling). It features a modified sgRNA backbone for enhanced sgRNA stability, a U6 promoter driving sgRNA expression, and an EF1a promoter driving co-expression of a puromycin resistance gene and TagRFP — enabling dual selection of transduced cells by antibiotic resistance and red fluorescence. It also carries an ampicillin resistance gene for plasmid amplification in *Escherichia coli*. It is used with cells stably expressing SpCas9 or its variants, such as lentiCas9-Blast ([Addgene #52962](https://www.addgene.org/52962/)), Lenti-dCas9-KRAB-blast ([Addgene #89567](https://www.addgene.org/89567/)), and lenti-dCAS-VP64-Blast ([Addgene #61425](https://www.addgene.org/61425/))
+The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**F1a-**P**uroR-Tag**R**FP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector for individual gene perturbations and CRISPR library screens (CRISPRko/i/a/tiling). It features a modified sgRNA backbone for enhanced sgRNA stability, a U6 promoter driving sgRNA expression, and an EF1a promoter driving co-expression of a puromycin resistance gene and TagRFP — enabling dual selection of transduced cells by antibiotic resistance and red fluorescence. It also carries an ampicillin resistance gene for plasmid amplification in *Escherichia coli*. It is used with cells stably expressing *Sp*Cas9 or its variants, such as lentiCas9-Blast ([Addgene #52962](https://www.addgene.org/52962/)), Lenti-dCas9-KRAB-blast ([Addgene #89567](https://www.addgene.org/89567/)), and lenti-dCAS-VP64-Blast ([Addgene #61425](https://www.addgene.org/61425/))
 (PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
 [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/),
 [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),
@@ -149,8 +149,8 @@ vectors, is an RNA Polymerase III promoter that requires a **guanosine (G) at th
 When the sgRNA sequence does not naturally begin with G, an extra G is prepended
 to ensure robust transcription.
 
-Importantly, **this extra G does not significantly affect SpCas9 on-target
-cleavage activity** for wild-type SpCas9, as position 1 mismatches at the 5'
+Importantly, **this extra G does not significantly affect *Sp*Cas9 on-target
+cleavage activity** for wild-type *Sp*Cas9, as position 1 mismatches at the 5'
 end of the sgRNA are well tolerated
 ([Hsu et al., *Nat Biotechnol*, 2013](https://pubmed.ncbi.nlm.nih.gov/23873081/);
 [Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
