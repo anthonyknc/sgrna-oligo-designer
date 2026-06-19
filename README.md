@@ -157,11 +157,13 @@ generally better tolerated than those at the 3' PAM-proximal seed region
 though tolerance is sequence-dependent.
 
 If your sgRNA sequence already starts with G, the extra G is still added by default,
-resulting in a 21-nt sgRNA with a 5'-GG- start. This follows the convention used in
-Broad Institute *Bsm*BI-based vectors (e.g., lentiGuide-Puro, Avana/Brunello
-libraries), as specified in the [official Broad GPP cloning protocol](https://portals.broadinstitute.org/gpp/public/dir/download?dirpath=protocols/production&filename=cloning_of_oligos_for_sgRNA_shRNA_nov2019.pdf),
-where the forward oligo is always designed as `5'-CACCG-[20 bp target]-3'` regardless
-of the starting nucleotide. This is also the convention we follow in our lab.
+resulting in a 21-nt sgRNA with a 5'-GG- start. This is the standard convention for
+*Bsm*BI-based lentiviral CRISPR vectors, as explicitly specified in the Zhang lab's
+official cloning protocol for lentiCRISPRv2 and lentiGuide-Puro
+([Addgene #52963](https://www.addgene.org/52963/)), where the forward oligo is always
+designed as `5'-CACCG-[20 bp target]-3'` regardless of the starting nucleotide, and
+confirmed by the [Broad Institute GPP cloning protocol](https://portals.broadinstitute.org/gpp/public/dir/download?dirpath=protocols/production&filename=cloning_of_oligos_for_sgRNA_shRNA_nov2019.pdf).
+This is also the convention we follow in our lab.
 
 
 ---
