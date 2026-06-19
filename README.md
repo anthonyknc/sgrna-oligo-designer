@@ -190,8 +190,8 @@ on the vector's Addgene page or its accompanying publication.
 needed for those vectors.
 
 For a vector that uses different overhangs, simply override the relevant flags.
-For example, if your vector's cloning site generates `ACCG` / `AAAC` overhangs
-with no 3' suffix:
+For example (hypothetical), if your vector's cloning site generates `ACCG` / `AAAC`
+overhangs with a `C` at the 3' suffix:
 
 ```bash
 python3 sgrna_oligo_designer.py input.xlsx \
@@ -199,7 +199,7 @@ python3 sgrna_oligo_designer.py input.xlsx \
     --stuffer my_stuffer.fa \
     --sense-prefix ACCG \
     --antisense-prefix AAAC \
-    --antisense-suffix ""
+    --antisense-suffix "C"
 ```
 
 ---
