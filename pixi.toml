@@ -1,6 +1,6 @@
 [workspace]
 name = "sgrna-oligo-designer"
-version = "0.1.0"
+version = "1.0.0"
 description = "sgRNA oligo designer with IDT order form and plasmid GenBank output"
 channels = ["conda-forge", "bioconda"]
 platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
