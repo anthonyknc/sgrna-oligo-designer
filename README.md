@@ -36,11 +36,17 @@ You are now ready to run the script.
 
 ## Step 1 — Design your sgRNA sequences with CRISPRpick
 
-Before using this tool, you need a list of 20-nucleotide sgRNA sequences targeting your gene(s) of interest. We recommend **CRISPRpick** from the Broad Institute:
+Before using this tool, you need a list of 20-nucleotide sgRNA target sequences for your gene(s) of interest. We recommend **CRISPRpick** from the Broad Institute:
 
 > 🔗 https://portals.broadinstitute.org/gppx/crispick/public
 
-CRISPRpick is free to use and requires no account. Simply enter your gene name or transcript ID, select your genome, Cas9 system (e.g. *Sp*Cas9), and the tool will return ranked sgRNA sequences with on-target efficiency scores. Select your top candidates (typically 3–6 per gene) and export them to a spreadsheet. Subsequently, the spreadsheet is tidied into the formats similar to [example_inputs/sgRNA_seqs](example_inputs/sgRNA_seqs).
+CRISPRpick is free to use and requires no account. Simply enter your gene name or transcript ID, select your genome and Cas9 system (e.g. *Sp*Cas9), and the tool will return ranked sgRNA sequences with on-target efficiency scores. Select your top candidates (typically 3–6 per gene) and export them to a spreadsheet, then reformat the exported data to match the input format shown in the examples at [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/).
+
+If you use CRISPRpick designs in a publication, please acknowledge:
+> *"Guide designs provided by the CRISPRpick web tool of the GPP at the Broad Institute"*
+> and cite PMID [36068235](https://pubmed.ncbi.nlm.nih.gov/36068235/) for *Sp*Cas9 designs, or PMID [32661438](https://pubmed.ncbi.nlm.nih.gov/32661438/) for Cas12a designs.
+
+Other popular sgRNA design tools include [CHOPCHOP](https://chopchop.cbu.uib.no) and [CRISPOR](http://crispor.tefor.net).
 
 ---
 
@@ -54,13 +60,13 @@ Prepare a spreadsheet (Excel `.xlsx`, `.csv`, or `.tsv`) with at least these two
 | sg_tRFP657_294 | GTCACCACATACGAAGACGG |
 
 - **`sgRNA_id`** — a unique name for each sgRNA (no spaces; underscores are fine)
-- **`sgRNA_seq`** — the 20-nucleotide sgRNA sequence, **without** the PAM and **without** any prefixes
+- **`sgRNA_seq`** — the 20-nucleotide sgRNA target sequence, **without** the PAM and **without** any cloning overhangs
 
 Additional columns (e.g. target gene, genomic coordinates, on-target score) are allowed and will be ignored by the script.
 
 See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use example files in all three formats.
 
-> **Note:** This script is designed for ***Sp*Cas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPRv2). For other nucleases or cloning systems, adjust the `--top-prefix`, `--bot-prefix`, and `--bot-suffix` options accordingly.
+> **Note:** The default oligo design targets ***Sp*Cas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPRv2). For other cloning systems with different overhangs, use the `--sense-prefix`, `--antisense-prefix`, and `--antisense-suffix` flags as described in the [**Using with other vectors**](#using-with-other-vectors-and-cloning-systems) section below.
 
 ---
 
@@ -68,7 +74,7 @@ See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use 
 
 ### Example 1 — ipUSEPR vector (Excel input)
 
-The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**F1a-**P**uroR-Tag**R**FP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector for individual gene perturbations and CRISPR library screens (CRISPRko/i/a/tiling). It features a modified sgRNA backbone for enhanced sgRNA stability, a U6 promoter driving sgRNA expression, and an EF1a promoter driving co-expression of a puromycin resistance gene and TagRFP — enabling dual selection of transduced cells by antibiotic resistance and red fluorescence. It also carries an ampicillin resistance gene for plasmid amplification in *Escherichia coli*. It is used with cells stably expressing *Sp*Cas9 or its variants, such as lentiCas9-Blast ([Addgene #52962](https://www.addgene.org/52962/)), Lenti-dCas9-KRAB-blast ([Addgene #89567](https://www.addgene.org/89567/)), and lenti-dCAS-VP64-Blast ([Addgene #61425](https://www.addgene.org/61425/))
+The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**F1a-**P**uroR-Tag**R**FP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector for individual gene perturbations and CRISPR library screens (CRISPRko/i/a/tiling). It features a modified sgRNA backbone for enhanced sgRNA stability, a U6 promoter driving sgRNA expression, and an EF1a promoter co-driving a puromycin resistance gene and TagRFP — enabling dual selection of transduced cells by antibiotic resistance and red fluorescence. It also carries an ampicillin resistance gene for plasmid propagation in *Escherichia coli*. It is used with cells stably expressing *Sp*Cas9 or its variants, such as lentiCas9-Blast ([Addgene #52962](https://www.addgene.org/52962/)), Lenti-dCas9-KRAB-blast ([Addgene #89567](https://www.addgene.org/89567/)), and lenti-dCAS-VP64-Blast ([Addgene #61425](https://www.addgene.org/61425/))
 (PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
 [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/),
 [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),
@@ -146,23 +152,61 @@ The **human U6 promoter**, which drives sgRNA expression in most mammalian CRISP
 vectors, is an RNA Polymerase III promoter that requires a **guanosine (G) at the
 +1 transcription start site** for efficient RNA synthesis
 ([Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
-When the sgRNA sequence does not naturally begin with G, an extra G is prepended
-to ensure robust transcription.
+When the sgRNA target sequence does not naturally begin with G, an extra G is prepended
+to the sense oligo to ensure robust transcription.
 
-Importantly, **this extra G does not significantly affect *Sp*Cas9 on-target
-cleavage activity** for wild-type *Sp*Cas9, as position 1 mismatches at the 5'
-end of the sgRNA are well tolerated
+Importantly, **this extra G does not significantly reduce *Sp*Cas9 on-target
+cleavage activity**, as single-nucleotide mismatches at the 5' end of the sgRNA
+are well tolerated by wild-type *Sp*Cas9
 ([Hsu et al., *Nat Biotechnol*, 2013](https://pubmed.ncbi.nlm.nih.gov/23873081/);
 [Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
-If your sgRNA sequence already starts with G, the extra G is still added by
-default (as the Zhang lab recommends), resulting in a 5'-GG- start — this has
-been shown to have minimal impact on activity and may marginally improve
-specificity ([Doench et al., *Nat Biotechnol*, 2016](https://pubmed.ncbi.nlm.nih.gov/26780180/)).
+If your sgRNA sequence already starts with G, the extra G is still added by default
+(as the Zhang lab recommends), resulting in a 5'-GG- start — this has been shown
+to have minimal impact on on-target activity
+([Doench et al., *Nat Biotechnol*, 2016](https://pubmed.ncbi.nlm.nih.gov/26780180/)).
 
-> If you are using a **high-fidelity Cas9 variant** (e.g. eSpCas9, SpCas9-HF1),
-> note that these variants are more sensitive to 5' mismatches. In that case,
-> preferentially select sgRNA sequences that naturally begin with G to avoid
-> the mismatch altogether.
+> **Note for high-fidelity Cas9 variants:** eSpCas9 and SpCas9-HF1 are more
+> sensitive to mismatches throughout the sgRNA, including at the 5' end. When
+> using these variants, preferentially select sgRNA target sequences that
+> naturally begin with G to avoid the mismatch introduced by the extra G.
+
+---
+
+## Using with other vectors and cloning systems
+
+The default oligo design (`CACCG` / `AAAC` / `C`) is specific to *Bsm*BI/Golden
+Gate-based lentiviral vectors. However, the script accommodates **any** vector
+and cloning system by adjusting three flags:
+
+| Flag | Default | Description |
+|---|---|---|
+| `--sense-prefix` | `CACCG` | 5' prefix added to the sense oligo |
+| `--antisense-prefix` | `AAAC` | 5' prefix added to the antisense oligo |
+| `--antisense-suffix` | `C` | 3' suffix added to the antisense oligo |
+
+These overhangs are determined by the Type IIS restriction enzyme used to
+linearize your vector. To find the correct values, check the cloning protocol
+on the vector's Addgene page or its accompanying publication.
+
+**A note on other popular vectors:** the Zhang lab **pX330** and **pX459**
+(*Bbs*I-based, Addgene [#42230](https://www.addgene.org/42230/) and
+[#62988](https://www.addgene.org/62988/)), and the Broad Institute **pXPR** /
+**lentiGuide-Puro** series (*Bsm*BI-based) all coincidentally use the same
+`CACCG` / `AAAC` / `C` overhangs as our defaults — so no customization is
+needed for those vectors.
+
+For a vector that uses different overhangs, simply override the relevant flags.
+For example, if your vector's cloning site generates `ACCG` / `AAAC` overhangs
+with no 3' suffix:
+
+```bash
+python3 sgrna_oligo_designer.py input.xlsx \
+    --vector my_vector.gb \
+    --stuffer my_stuffer.fa \
+    --sense-prefix ACCG \
+    --antisense-prefix AAAC \
+    --antisense-suffix ""
+```
 
 ---
 
@@ -183,7 +227,7 @@ positional arguments:
   input                     Input file (.xlsx, .csv, or .tsv)
 
 optional arguments:
-  --output, -o              Output directory or path for the IDT order form
+  --output, -o              Output directory or path for the IDT order form.
                             Default: same folder as the input file
   --vector, -v              Empty vector GenBank file (.gb). Required for plasmid output
   --stuffer                 Stuffer sequence to replace with the sgRNA 20-mer.
@@ -191,7 +235,7 @@ optional arguments:
                             (auto-detected). Default: 20 N's (NNNNNNNNNNNNNNNNNNNN)
   --multi-gb                Combine all plasmid records into a single .gb file
                             instead of one file per sgRNA
-  --gb-output               Output directory for .gb plasmid files
+  --gb-output               Output directory for .gb plasmid files.
                             Default: same folder as the input file
   --vector-name             Custom name prepended to each plasmid filename.
                             Default: stem of the --vector filename (e.g. "ipUSEPR")
@@ -206,15 +250,15 @@ optional arguments:
 
 ## Supported vectors
 
-The script works with **any** *Bsm*BI/Golden Gate-compatible vector as long as you
-provide its GenBank file and the stuffer sequence to replace. The following
-vectors have been tested:
+The script works with any sgRNA cloning vector as long as you provide its
+GenBank file, the stuffer sequence, and the correct cloning overhangs. The
+following vectors have been tested:
 
-| Vector | Addgene / Reference | Stuffer input |
-|---|---|---|
-| ipUSEPR | PMIDs: 34210975, 34373586, 36563143, 37075745, 38394203, 38316881, 39716856 | Short string |
-| lentiCRISPRv2 | [Addgene #52961](https://www.addgene.org/52961/) | FASTA file |
-| LentiCRISPRv2GFP | [Addgene #82416](https://www.addgene.org/82416/) | FASTA file |
+| Vector | Addgene / Reference | Stuffer input | Custom flags needed? |
+|---|---|---|---|
+| ipUSEPR | PMIDs: 34210975, 34373586, 36563143, 37075745, 38394203, 38316881, 39716856 | Short string | No (defaults) |
+| lentiCRISPRv2 | [Addgene #52961](https://www.addgene.org/52961/) | FASTA file | No (defaults) |
+| LentiCRISPRv2GFP | [Addgene #82416](https://www.addgene.org/82416/) | FASTA file | No (defaults) |
 
 ---
 
@@ -253,11 +297,11 @@ If you use this tool in your research, please cite it as:
 
 > Chan, A.K.N. (2026). sgRNA Oligo Designer. GitHub: https://github.com/anthonyknc/sgrna-oligo-designer.
 
-If you use our in-house plasmid, ipUSEPR for sgRNA cloning, please cite it as:
-> Yang, L.<sup>#</sup>, Chan, A.K.N.<sup>#</sup>, Miyashita, K.<sup>#</sup>, Delaney, C.D., Wang, X., Li, H., Pokharel, S.P., Li, S., Li, M., Xu, X., et al. (2021). High-resolution characterization of gene function using single-cell CRISPR tiling screen. Nat Commun *12*, 4063. 10.1038/s41467-021-24324-0. (<sup>#</sup>Co-first authors)
+If you use our in-house vector **ipUSEPR** for sgRNA cloning, please cite:
+> Yang, L.<sup>#</sup>, Chan, A.K.N.<sup>#</sup>, Miyashita, K.<sup>#</sup>, Delaney, C.D., Wang, X., Li, H., Pokharel, S.P., Li, S., Li, M., Xu, X., et al. (2021). High-resolution characterization of gene function using single-cell CRISPR tiling screen. *Nat Commun* **12**, 4063. https://doi.org/10.1038/s41467-021-24324-0. (<sup>#</sup>Co-first authors)
 
-If you use ipUSEPR for duo sgRNAs cloning using [STAgR](https://pubmed.ncbi.nlm.nih.gov/29702666/) ([Addgene #102844](https://www.addgene.org/102844/)), please cite it as:
-> Chan, A.K.N., Han, L., Delaney, C.D., Wang, X., Mukhaleva, E., Li, M., Yang, L., Pokharel, S.P., Mattson, N., Garcia, M., et al. (2024). Therapeutic targeting Tudor domains in leukemia via CRISPR-Scan Assisted Drug Discovery. Sci Adv *10*, eadk3127. 10.1126/sciadv.adk3127.
+If you use ipUSEPR for cloning dual sgRNA using [STAgR](https://pubmed.ncbi.nlm.nih.gov/29702666/) ([Addgene #102844](https://www.addgene.org/102844/)), please also cite:
+> Chan, A.K.N., Han, L., Delaney, C.D., Wang, X., Mukhaleva, E., Li, M., Yang, L., Pokharel, S.P., Mattson, N., Garcia, M., et al. (2024). Therapeutic targeting of Tudor domains in leukemia via CRISPR-Scan Assisted Drug Discovery. *Sci Adv* **10**, eadk3127. https://doi.org/10.1126/sciadv.adk3127.
 
 ---
 
