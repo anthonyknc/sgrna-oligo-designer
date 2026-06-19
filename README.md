@@ -85,7 +85,9 @@ python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.xls
     --stuffer GAGACGTGACCGTCTCT \
     --output example_outputs/ \
     --gb-output example_outputs/plasmids/
+```
 
+```bash
 # All sgRNAs combined into a single .gb file
 python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.xlsx \
     --vector example_inputs/vector_seqs/ipUSEPR.gb \
