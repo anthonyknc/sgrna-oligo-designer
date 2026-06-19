@@ -250,13 +250,7 @@ following vectors have been tested:
 
 | Vector | Addgene / Reference | Stuffer input | Custom flags needed? |
 |---|---|---|---|
-| ipUSEPR | PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
-[34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/),
-[36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),
-[37075745](https://pubmed.ncbi.nlm.nih.gov/37075745/),
-[38394203](https://pubmed.ncbi.nlm.nih.gov/38394203/),
-[38316881](https://pubmed.ncbi.nlm.nih.gov/38316881/),
-[39716856](https://pubmed.ncbi.nlm.nih.gov/39716856/) | Short string | No (defaults) |
+| ipUSEPR | PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),[34373586](https://pubmed.ncbi.nlm.nih.gov/34373586, [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),[37075745](https://pubmed.ncbi.nlm.nih.gov/37075745/), [38394203](https://pubmed.ncbi.nlm.nih.gov/38394203/), [38316881](https://pubmed.ncbi.nlm.nih.gov/38316881/), [39716856](https://pubmed.ncbi.nlm.nih.gov/39716856/) | Short string | No (defaults) |
 | lentiCRISPRv2 | [Addgene #52961](https://www.addgene.org/52961/) | FASTA file | No (defaults) |
 | LentiCRISPRv2GFP | [Addgene #82416](https://www.addgene.org/82416/) | FASTA file | No (defaults) |
 
