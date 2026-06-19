@@ -151,10 +151,10 @@ When the sgRNA target sequence does not naturally begin with G, an extra G is pr
 to the sense oligo to ensure robust transcription.
 
 Importantly, **this extra G does not significantly reduce *Sp*Cas9 on-target
-cleavage activity**, as single-nucleotide mismatches at the 5' end of the sgRNA
-are well tolerated by wild-type *Sp*Cas9
-([Hsu et al., *Nat Biotechnol*, 2013](https://pubmed.ncbi.nlm.nih.gov/23873081/);
-[Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
+cleavage activity**, as mismatches at the 5' PAM-distal end of the sgRNA are
+generally better tolerated than those at the 3' PAM-proximal seed region
+([Hsu et al., *Nat Biotechnol*, 2013](https://pubmed.ncbi.nlm.nih.gov/23873081/)),
+though tolerance is sequence-dependent.
 
 If your sgRNA sequence already starts with G, the extra G is still added by default,
 resulting in a 21-nt sgRNA with a 5'-GG- start. This follows the convention used in
@@ -163,17 +163,6 @@ libraries), as specified in the [official Broad GPP cloning protocol](https://po
 where the forward oligo is always designed as `5'-CACCG-[20 bp target]-3'` regardless
 of the starting nucleotide. This is also the convention we follow in our lab.
 
-> **Note for pX330/pX459 users:** The Zhang lab's original protocol for these
-> *Bbs*I-based vectors ([Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/))
-> recommends preferring targets that naturally begin with G, using the target's own G
-> as the +1 transcription start site rather than always prepending an extra G.
-> If you are using pX330/pX459, adjust `--sense-prefix` to `CACC` for sgRNAs
-> that already start with G.
-
-> **Note for high-fidelity Cas9 variants:** eSpCas9 and SpCas9-HF1 are more
-> sensitive to mismatches throughout the sgRNA, including at the 5' end. When
-> using these variants, preferentially select sgRNA target sequences that
-> naturally begin with G to avoid the mismatch introduced by the extra G.
 
 ---
 
