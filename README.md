@@ -184,9 +184,7 @@ These overhangs are determined by the Type IIS restriction enzyme used to
 linearize your vector. To find the correct values, check the cloning protocol
 on the vector's Addgene page or its accompanying publication.
 
-**A note on other popular vectors:** the Zhang lab **pX330** and **pX459**
-(*Bbs*I-based, Addgene [#42230](https://www.addgene.org/42230/) and
-[#62988](https://www.addgene.org/62988/)), and the Broad Institute **pXPR** /
+**A note on other popular vectors:** the Broad Institute **pXPR** /
 **lentiGuide-Puro** series (*Bsm*BI-based) all coincidentally use the same
 `CACCG` / `AAAC` / `C` overhangs as our defaults — so no customization is
 needed for those vectors.
