@@ -61,7 +61,7 @@ Additional columns (e.g. target gene, genomic coordinates, on-target score) are 
 
 See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use example files in all three formats.
 
-> **Note:** The default oligo design targets ***Sp*Cas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPRv2, LentiCRISPRv2GFP, etc). For other cloning systems with different overhangs, use the `--sense-prefix`, `--antisense-prefix`, and `--antisense-suffix` flags as described in the [**Using with other vectors**](#using-with-other-vectors-and-cloning-systems) section below.
+> **Note:** The default oligo design targets ***Sp*Cas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPR v2, LentiCRISPRv2GFP, etc). For other cloning systems with different overhangs, use the `--sense-prefix`, `--antisense-prefix`, and `--antisense-suffix` flags as described in the [**Using with other vectors**](#using-with-other-vectors-and-cloning-systems) section below.
 
 ---
 
@@ -87,9 +87,9 @@ python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.xls
     --gb-output example_outputs/plasmids/
 ```
 
-### Example 2 — lentiCRISPRv2 vector (CSV input)
+### Example 2 — lentiCRISPR v2 vector (CSV input)
 
-**lentiCRISPRv2** ([Addgene #52961](https://www.addgene.org/52961/)) is one of the most widely used all-in-one lentiviral CRISPR vectors. Its stuffer sequence is long (1,880 bp), so it is provided as a FASTA file — the script detects this automatically.
+**lentiCRISPR v2** ([Addgene #52961](https://www.addgene.org/52961/)) is one of the most widely used all-in-one lentiviral CRISPR vectors. Its stuffer sequence is long (1,880 bp), so it is provided as a FASTA file — the script detects this automatically.
 
 ```bash
 python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.csv \
@@ -101,7 +101,7 @@ python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.csv
 
 ### Example 3 — LentiCRISPRv2GFP vector (TSV input)
 
-**LentiCRISPRv2GFP** ([Addgene #82416](https://www.addgene.org/82416/)) is a lentiCRISPRv2 variant with a GFP reporter, useful for tracking transduced cells by flow cytometry and growth competition assays. It also uses a FASTA stuffer file.
+**LentiCRISPRv2GFP** ([Addgene #82416](https://www.addgene.org/82416/)) is a lentiCRISPR v2 variant with a GFP reporter, useful for tracking transduced cells by flow cytometry and growth competition assays. It also uses a FASTA stuffer file.
 
 ```bash
 python3 sgrna_oligo_designer.py example_inputs/sgRNA_seqs/example_sgRNA_seqs.tsv \
@@ -159,7 +159,7 @@ though tolerance is sequence-dependent.
 If your sgRNA sequence already starts with G, the extra G is still added by default,
 resulting in a 21-nt sgRNA with a 5'-GG- start. This is the standard convention for
 *Bsm*BI-based lentiviral CRISPR vectors, as explicitly specified in the Zhang lab's
-official cloning protocol for lentiCRISPRv2 and lentiGuide-Puro
+official cloning protocol for lentiCRISPR v2 and lentiGuide-Puro
 ([Addgene #52963](https://www.addgene.org/52963/)), where the forward oligo is always
 designed as `5'-CACCG-[20 bp target]-3'` regardless of the starting nucleotide, and
 confirmed by the [Broad Institute GPP cloning protocol](https://portals.broadinstitute.org/gpp/public/dir/download?dirpath=protocols/production&filename=cloning_of_oligos_for_sgRNA_shRNA_nov2019.pdf).
@@ -252,7 +252,7 @@ following vectors have been tested:
 | Vector | Addgene / Reference | Stuffer input | Custom flags needed? |
 |---|---|---|---|
 | ipUSEPR | PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/), [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/), [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/), [37075745](https://pubmed.ncbi.nlm.nih.gov/37075745/), [38394203](https://pubmed.ncbi.nlm.nih.gov/38394203/), [38316881](https://pubmed.ncbi.nlm.nih.gov/38316881/), [39716856](https://pubmed.ncbi.nlm.nih.gov/39716856/) | Short string | No (defaults) |
-| lentiCRISPRv2 | [Addgene #52961](https://www.addgene.org/52961/) | FASTA file | No (defaults) |
+| lentiCRISPR v2 | [Addgene #52961](https://www.addgene.org/52961/) | FASTA file | No (defaults) |
 | LentiCRISPRv2GFP | [Addgene #82416](https://www.addgene.org/82416/) | FASTA file | No (defaults) |
 
 ---
