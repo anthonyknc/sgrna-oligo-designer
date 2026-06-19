@@ -191,7 +191,8 @@ needed for those vectors.
 
 For a vector that uses different overhangs, simply override the relevant flags.
 For example (hypothetical), if your vector's cloning site generates `ACCG` / `AAAC`
-overhangs with a `C` at the 3' suffix:
+overhangs with no 3' suffix (the G for U6 transcription is already embedded in the
+`ACCG` overhang, so no complementary `C` is needed on the antisense oligo):
 
 ```bash
 python3 sgrna_oligo_designer.py input.xlsx \
@@ -199,7 +200,7 @@ python3 sgrna_oligo_designer.py input.xlsx \
     --stuffer my_stuffer.fa \
     --sense-prefix ACCG \
     --antisense-prefix AAAC \
-    --antisense-suffix "C"
+    --antisense-suffix ""
 ```
 
 ---
