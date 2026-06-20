@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 import shinyswatch
-from shiny import App, reactive, render, req
+from shiny import App, reactive, render, req, ui
 from shiny import ui as sui
 
 from sgrna_oligo_designer import (
@@ -30,8 +30,15 @@ from sgrna_oligo_designer import (
 # Constants
 # ---------------------------------------------------------------------------
 
-_VERSION = "v1.0.0"
-_GITHUB_URL = "https://github.com/anthonyknc/sgrna-oligo-designer"
+_VERSION      = "v1.0.0"
+_GITHUB_URL   = "https://github.com/anthonyknc/sgrna-oligo-designer"
+_EXAMPLE_XLSX = Path(__file__).parent / "example_inputs" / "example_sgRNA_seqs.xlsx"
+_EXAMPLE_GB   = Path(__file__).parent / "example_inputs" / "ipUSEPR.gb"
+_EXAMPLE_STUFFER = "GAGACGTGACCGTCTCT"
+
+# ---------------------------------------------------------------------------
+# Assets
+# ---------------------------------------------------------------------------
 
 _GITHUB_SVG = """
 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
@@ -50,15 +57,52 @@ _GITHUB_SVG = """
 </svg>
 """
 
-# Bootstrap 5.3 native dark mode toggle via data-bs-theme attribute
 _DARK_MODE_JS = """
 Shiny.addCustomMessageHandler('set-theme', function(theme) {
     document.documentElement.setAttribute('data-bs-theme', theme);
 });
 """
 
+# CSS: spinner on Run button when Shiny is busy
+_BUSY_CSS = """
+#run_btn { transition: opacity 0.2s; position: relative; }
+.shiny-busy #run_btn { opacity: 0.65; cursor: wait; }
+.shiny-busy #run_btn::after {
+    content: "";
+    position: absolute;
+    width: 0.9rem;
+    height: 0.9rem;
+    border: 2px solid rgba(255,255,255,0.7);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: shiny-spin 0.6s linear infinite;
+    right: 0.7rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+@keyframes shiny-spin { to { transform: translateY(-50%) rotate(360deg); } }
+"""
+
 # ---------------------------------------------------------------------------
-# Title bar: name + version + GitHub icon
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _tip(text: str):
+    """Inline ⓘ tooltip icon for input labels."""
+    return sui.tooltip(
+        sui.tags.span(" ⓘ", style="cursor:help; color:#adb5bd; font-size:0.85em;"),
+        text,
+        placement="right",
+    )
+
+
+def _label(text: str, tip: str):
+    """Input label with inline tooltip."""
+    return sui.tags.span(text, _tip(tip))
+
+
+# ---------------------------------------------------------------------------
+# Title bar
 # ---------------------------------------------------------------------------
 
 _TITLE = sui.tags.div(
@@ -85,6 +129,16 @@ app_ui = sui.page_sidebar(
 
     sui.sidebar(
 
+        # --- Load example ---
+        sui.input_action_button(
+            "example_btn",
+            "⚡ Load example data",
+            class_="btn-outline-secondary w-100",
+        ),
+
+        sui.hr(),
+
+        # --- Step 1 ---
         sui.h6("Step 1 — sgRNA table"),
         sui.input_file(
             "sgrna_file",
@@ -93,6 +147,8 @@ app_ui = sui.page_sidebar(
         ),
 
         sui.hr(),
+
+        # --- Step 2 ---
         sui.h6("Step 2 — GenBank output (optional)"),
         sui.input_file(
             "vector_file",
@@ -101,7 +157,9 @@ app_ui = sui.page_sidebar(
         ),
         sui.input_text(
             "stuffer_text",
-            "Stuffer sequence",
+            _label("Stuffer sequence",
+                   "The placeholder sequence in the vector to be replaced by the sgRNA 20-mer. "
+                   "Accepts a raw string or upload a FASTA file below."),
             placeholder="e.g. GAGACGTGACCGTCTCT",
         ),
         sui.input_file(
@@ -109,26 +167,62 @@ app_ui = sui.page_sidebar(
             "Or upload stuffer FASTA (.fa)",
             accept=[".fa", ".fasta"],
         ),
-        # Stuffer source indicator — updates reactively without Run
         sui.output_ui("stuffer_source"),
         sui.input_text(
             "vector_name",
-            "Vector name (optional)",
+            _label("Vector name (optional)",
+                   "Name prepended to each plasmid filename. "
+                   "Defaults to the vector filename stem (e.g. 'ipUSEPR')."),
             placeholder="Default: vector filename stem",
         ),
         sui.input_text(
             "combined_name",
-            "Combined .gb filename stem",
+            _label("Combined .gb filename stem",
+                   "The output combined GenBank file will be named <stem>.gb."),
             value="combined_plasmids",
         ),
 
         sui.hr(),
-        sui.h6("Advanced options"),
-        sui.input_text("seq_col",          "sgRNA sequence column", value="sgRNA_seq"),
-        sui.input_text("id_col",           "sgRNA ID column",        value="sgRNA_id"),
-        sui.input_text("sense_prefix",     "Sense oligo prefix",     value="CACCG"),
-        sui.input_text("antisense_prefix", "Antisense oligo prefix", value="AAAC"),
-        sui.input_text("antisense_suffix", "Antisense oligo suffix", value="C"),
+
+        # --- Advanced options (collapsible) ---
+        sui.accordion(
+            sui.accordion_panel(
+                "⚙ Advanced options",
+                sui.input_text(
+                    "seq_col",
+                    _label("sgRNA sequence column",
+                           "Column name in your input file containing the 20-nt sgRNA target sequences."),
+                    value="sgRNA_seq",
+                ),
+                sui.input_text(
+                    "id_col",
+                    _label("sgRNA ID column",
+                           "Column name in your input file containing unique sgRNA identifiers."),
+                    value="sgRNA_id",
+                ),
+                sui.input_text(
+                    "sense_prefix",
+                    _label("Sense oligo prefix",
+                           "5' prefix added to the sense oligo. "
+                           "Default CACCG is for BsmBI-based vectors (ipUSEPR, lentiCRISPRv2)."),
+                    value="CACCG",
+                ),
+                sui.input_text(
+                    "antisense_prefix",
+                    _label("Antisense oligo prefix",
+                           "5' prefix added to the antisense oligo."),
+                    value="AAAC",
+                ),
+                sui.input_text(
+                    "antisense_suffix",
+                    _label("Antisense oligo suffix",
+                           "3' suffix added to the antisense oligo. "
+                           "The 'C' complements the extra G in the sense prefix."),
+                    value="C",
+                ),
+            ),
+            open=False,
+        ),
 
         sui.hr(),
         sui.input_action_button("run_btn", "Run", class_="btn-primary w-100"),
@@ -136,14 +230,19 @@ app_ui = sui.page_sidebar(
         width=320,
     ),
 
-    # Dark mode toggle — fixed top-right inside navbar
+    # --- Dark mode toggle: far right of navbar ---
     sui.tags.div(
-        sui.input_switch("dark_mode", "🌙", value=False),
-        style="position:fixed; top:0.6rem; right:1.25rem; z-index:1031;",
+        sui.tags.span("🌙", style="font-size:1.1em;"),
+        sui.input_switch("dark_mode", "", value=False),
+        style=(
+            "position:fixed; top:0.6rem; right:0.5rem; z-index:1031;"
+            " display:flex; align-items:center; gap:0.3rem;"
+        ),
     ),
 
-    # Dark mode JS handler
+    # --- JS & CSS ---
     sui.tags.script(_DARK_MODE_JS),
+    sui.tags.style(_BUSY_CSS),
 
     # --- Main panel ---
     sui.h4("Summary"),
@@ -160,7 +259,7 @@ app_ui = sui.page_sidebar(
     sui.h6("Combined GenBank File (.gb)"),
     sui.download_button("download_gb", "Download Combined GenBank"),
 
-    # Footer
+    # --- Footer ---
     sui.tags.div(
         sui.tags.hr(),
         sui.tags.p(
@@ -183,15 +282,29 @@ app_ui = sui.page_sidebar(
 
 def server(input, output, session):
 
-    # --- Dark mode toggle ---
+    # Example mode flag
+    _use_example = reactive.value(False)
+
+    @reactive.effect
+    @reactive.event(input.example_btn)
+    def _set_example():
+        _use_example.set(True)
+
+    @reactive.effect
+    @reactive.event(input.run_btn)
+    def _clear_example():
+        _use_example.set(False)
+
+    # --- Dark mode ---
 
     @reactive.effect
     @reactive.event(input.dark_mode)
-    async def apply_theme():
-        theme = "dark" if input.dark_mode() else "light"
-        await session.send_custom_message("set-theme", theme)
+    async def _apply_theme():
+        await session.send_custom_message(
+            "set-theme", "dark" if input.dark_mode() else "light"
+        )
 
-    # --- Stuffer source indicator (reactive, no Run needed) ---
+    # --- Stuffer source indicator ---
 
     @output
     @render.ui
@@ -215,11 +328,13 @@ def server(input, output, session):
     # --- Reactive calculations ---
 
     @reactive.calc
-    @reactive.event(input.run_btn)
+    @reactive.event(input.run_btn, input.example_btn)
     def processed_rows() -> list[dict]:
-        req(input.sgrna_file())
-        file_info = input.sgrna_file()[0]
-        rows = read_input(Path(file_info["datapath"]))
+        if _use_example():
+            rows = read_input(_EXAMPLE_XLSX)
+        else:
+            req(input.sgrna_file())
+            rows = read_input(Path(input.sgrna_file()[0]["datapath"]))
         return add_cloning_oligos(
             rows,
             seq_col=input.seq_col(),
@@ -229,21 +344,26 @@ def server(input, output, session):
         )
 
     @reactive.calc
-    @reactive.event(input.run_btn)
+    @reactive.event(input.run_btn, input.example_btn)
     def idt_rows() -> list[dict]:
         return build_idt_rows(processed_rows(), id_col=input.id_col())
 
     @reactive.calc
-    @reactive.event(input.run_btn)
+    @reactive.event(input.run_btn, input.example_btn)
     def plasmid_records():
-        req(input.vector_file())
-        vector_info = input.vector_file()[0]
-        vector_record = read_vector_gb(Path(vector_info["datapath"]))
-        if input.stuffer_file():
-            stuffer_seq = read_fasta_sequence(Path(input.stuffer_file()[0]["datapath"]))
+        if _use_example():
+            vector_record = read_vector_gb(_EXAMPLE_GB)
+            stuffer_seq   = _EXAMPLE_STUFFER
         else:
-            stuffer_seq = "".join(input.stuffer_text().split())
-        req(stuffer_seq)
+            req(input.vector_file())
+            vector_info  = input.vector_file()[0]
+            vector_record = read_vector_gb(Path(vector_info["datapath"]))
+            stuffer_seq  = (
+                read_fasta_sequence(Path(input.stuffer_file()[0]["datapath"]))
+                if input.stuffer_file()
+                else "".join(input.stuffer_text().split())
+            )
+            req(stuffer_seq)
         return build_plasmid_records(
             processed_rows(),
             vector_record,
@@ -251,6 +371,22 @@ def server(input, output, session):
             seq_col=input.seq_col(),
             id_col=input.id_col(),
         )
+
+    # --- Notification on completion ---
+
+    @reactive.effect
+    @reactive.event(input.run_btn, input.example_btn)
+    def _notify():
+        try:
+            rows = processed_rows()
+            n    = len(rows)
+            ui.notification_show(
+                f"✓ Processed {n} sgRNA sequences → {n * 2} oligos",
+                type="message",
+                duration=3,
+            )
+        except Exception as e:
+            ui.notification_show(str(e), type="error", duration=5)
 
     # --- Outputs ---
 
@@ -275,9 +411,17 @@ def server(input, output, session):
         req(idt_rows())
         return pd.DataFrame(idt_rows())
 
-    # --- Downloads ---
+    # --- Downloads with dynamic filenames ---
 
-    @render.download(filename="IDT_orderForm.xlsx")
+    @render.download(
+        filename=lambda: (
+            "example_sgRNA_seqs_IDT_orderForm.xlsx"
+            if _use_example()
+            else f"{Path(input.sgrna_file()[0]['name']).stem}_IDT_orderForm.xlsx"
+            if input.sgrna_file()
+            else "IDT_orderForm.xlsx"
+        )
+    )
     def download_idt():
         req(idt_rows())
         with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
@@ -288,12 +432,15 @@ def server(input, output, session):
         finally:
             tmp_path.unlink(missing_ok=True)
 
-    @render.download(filename="combined_plasmids.gb")
+    @render.download(
+        filename=lambda: f"{input.combined_name() or 'combined_plasmids'}.gb"
+    )
     def download_gb():
         req(plasmid_records())
-        vector_name = (
-            input.vector_name()
-            or Path(input.vector_file()[0]["name"]).stem
+        vector_name  = (
+            "ipUSEPR"
+            if _use_example()
+            else input.vector_name() or Path(input.vector_file()[0]["name"]).stem
         )
         combined_stem = input.combined_name() or "combined_plasmids"
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -304,8 +451,7 @@ def server(input, output, session):
                 multi_gb=True,
                 combined_stem=combined_stem,
             )
-            gb_file = Path(tmp_dir) / f"{combined_stem}.gb"
-            yield gb_file.read_bytes()
+            yield (Path(tmp_dir) / f"{combined_stem}.gb").read_bytes()
 
 
 # ---------------------------------------------------------------------------
