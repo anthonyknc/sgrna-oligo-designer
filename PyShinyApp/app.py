@@ -1,14 +1,8 @@
 """
-app.py  —  sgRNA Oligo Designer (core shiny mode)
---------------------------------------------------
-Core shiny mode is used here for maximum compatibility.
-The reactive model is identical to R/Shiny: app_ui = ui.R, server = server.R.
-
-Run locally:
-    shiny run app.py --reload
-
-Deploy to shinyapps.io:
-    rsconnect deploy shiny . --name <your-account> --title sgrna-oligo-designer
+app.py  —  sgRNA Oligo Designer v1.0.0
+---------------------------------------
+Core shiny mode. Run: shiny run app.py --reload
+Deploy:        rsconnect deploy shiny . --name <account> --title sgrna-oligo-designer
 """
 
 from __future__ import annotations
@@ -17,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 import pandas as pd
+import shinyswatch
 from shiny import App, reactive, render, req
 from shiny import ui as sui
 
@@ -32,12 +27,64 @@ from sgrna_oligo_designer import (
 )
 
 # ---------------------------------------------------------------------------
-# UI  (equivalent to ui.R in R/Shiny)
+# Constants
+# ---------------------------------------------------------------------------
+
+_VERSION = "v1.0.0"
+_GITHUB_URL = "https://github.com/anthonyknc/sgrna-oligo-designer"
+
+_GITHUB_SVG = """
+<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+     viewBox="0 0 24 24" fill="currentColor" aria-label="GitHub">
+  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207
+  11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033
+  -1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729
+  1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997
+  .107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931
+  0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0
+  1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047
+  .138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874
+  .118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479
+  5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576
+  4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+</svg>
+"""
+
+# Bootstrap 5.3 native dark mode toggle via data-bs-theme attribute
+_DARK_MODE_JS = """
+Shiny.addCustomMessageHandler('set-theme', function(theme) {
+    document.documentElement.setAttribute('data-bs-theme', theme);
+});
+"""
+
+# ---------------------------------------------------------------------------
+# Title bar: name + version + GitHub icon
+# ---------------------------------------------------------------------------
+
+_TITLE = sui.tags.div(
+    sui.tags.span("sgRNA Oligo Designer", style="font-weight:600;"),
+    sui.tags.span(
+        _VERSION,
+        style="font-size:0.7em; color:#6c757d; margin-left:0.5em; vertical-align:middle;",
+    ),
+    sui.tags.a(
+        sui.HTML(_GITHUB_SVG),
+        href=_GITHUB_URL,
+        target="_blank",
+        title="View on GitHub",
+        style="margin-left:0.75em; color:inherit; vertical-align:middle; opacity:0.75;",
+    ),
+    style="display:flex; align-items:center;",
+)
+
+# ---------------------------------------------------------------------------
+# UI
 # ---------------------------------------------------------------------------
 
 app_ui = sui.page_sidebar(
 
     sui.sidebar(
+
         sui.h6("Step 1 — sgRNA table"),
         sui.input_file(
             "sgrna_file",
@@ -62,6 +109,8 @@ app_ui = sui.page_sidebar(
             "Or upload stuffer FASTA (.fa)",
             accept=[".fa", ".fasta"],
         ),
+        # Stuffer source indicator — updates reactively without Run
+        sui.output_ui("stuffer_source"),
         sui.input_text(
             "vector_name",
             "Vector name (optional)",
@@ -83,8 +132,15 @@ app_ui = sui.page_sidebar(
 
         sui.hr(),
         sui.input_action_button("run_btn", "Run", class_="btn-primary w-100"),
+
+        sui.hr(),
+        sui.input_switch("dark_mode", "🌙  Dark mode", value=False),
+
         width=320,
     ),
+
+    # Dark mode JS handler
+    sui.tags.script(_DARK_MODE_JS),
 
     # --- Main panel ---
     sui.h4("Summary"),
@@ -101,15 +157,45 @@ app_ui = sui.page_sidebar(
     sui.h6("Combined GenBank File (.gb)"),
     sui.download_button("download_gb", "Download Combined GenBank"),
 
-    title="sgRNA Oligo Designer",
+    title=_TITLE,
+    theme=shinyswatch.theme.flatly(),
 )
 
 
 # ---------------------------------------------------------------------------
-# Server  (equivalent to server.R in R/Shiny)
+# Server
 # ---------------------------------------------------------------------------
 
 def server(input, output, session):
+
+    # --- Dark mode toggle ---
+
+    @reactive.effect
+    @reactive.event(input.dark_mode)
+    async def apply_theme():
+        theme = "dark" if input.dark_mode() else "light"
+        await session.send_custom_message("set-theme", theme)
+
+    # --- Stuffer source indicator (reactive, no Run needed) ---
+
+    @output
+    @render.ui
+    def stuffer_source():
+        if input.stuffer_file():
+            return sui.tags.small(
+                "✓ Using uploaded FASTA file",
+                style="color:#2ecc71; font-weight:500;",
+            )
+        elif input.stuffer_text().strip():
+            return sui.tags.small(
+                "✓ Using manually entered sequence",
+                style="color:#2ecc71; font-weight:500;",
+            )
+        else:
+            return sui.tags.small(
+                "⚠ No stuffer — GenBank output disabled",
+                style="color:#f39c12; font-weight:500;",
+            )
 
     # --- Reactive calculations ---
 
