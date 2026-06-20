@@ -88,11 +88,11 @@ _BUSY_CSS = """
 # ---------------------------------------------------------------------------
 
 def _tip(text: str):
-    """Inline ⓘ tooltip icon for input labels."""
-    return sui.tooltip(
-        sui.tags.span(" ⓘ", style="cursor:help; color:#adb5bd; font-size:0.85em;"),
-        text,
-        placement="right",
+    """Inline ⓘ tooltip icon — uses native HTML title for reliable cross-context display."""
+    return sui.tags.span(
+        " ⓘ",
+        title=text,
+        style="cursor:help; color:#adb5bd; font-size:0.85em;",
     )
 
 

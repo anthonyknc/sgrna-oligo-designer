@@ -402,6 +402,10 @@ def write_gb_files(
     """
     Write GenBank files — one per sgRNA (default) or a single combined file.
 
+    Each record’s LOCUS name (record.name) and accession (record.id) are set to
+    '{vector_name}_{sgRNA_id}' so that SnapGene and Benchling display the full
+    construct name (e.g. 'ipUSEPR_sg_Luc_474') rather than just the bare sgRNA ID.
+
     Parameters
     ----------
     records : list[Bio.SeqRecord.SeqRecord]
@@ -409,27 +413,38 @@ def write_gb_files(
     output_dir : Path
         Directory for output .gb files.
     vector_name : str
-        Vector name appended to each output filename.
-        Produces: {sgRNA_id}_{vector_name}.gb
+        Vector name prepended to each record name and output filename.
+        Produces: {vector_name}_{sgRNA_id}.gb
     multi_gb : bool
         If True, write all records into a single combined .gb file.
     combined_stem : str
         Filename stem for the combined file (used when multi_gb=True).
     """
+    import copy
     from Bio import SeqIO
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    def _named(record):
+        """Return a copy with vector_name prepended to id and name."""
+        r             = copy.deepcopy(record)
+        full_id       = f"{vector_name}_{record.id}"
+        r.id          = full_id
+        r.name        = full_id   # LOCUS name shown by SnapGene / Benchling
+        r.description = f"{record.id} cloned into {vector_name}"
+        return r
+
     if multi_gb:
         out_path = output_dir / f"{combined_stem}.gb"
         with open(out_path, "w") as fh:
-            SeqIO.write(records, fh, "genbank")
+            SeqIO.write([_named(r) for r in records], fh, "genbank")
         print(f"Saved → {out_path}")
     else:
         for record in records:
-            out_path = output_dir / f"{vector_name}_{record.id}.gb"
+            named    = _named(record)
+            out_path = output_dir / f"{named.id}.gb"
             with open(out_path, "w") as fh:
-                SeqIO.write([record], fh, "genbank")
+                SeqIO.write([named], fh, "genbank")
             print(f"Saved → {out_path}")
 
 
