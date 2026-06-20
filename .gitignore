@@ -15,3 +15,7 @@ build/
 
 # Microsoft Office temp files
 ~$*
+
+# PyShinyApp
+PyShinyApp/venv
+PyShinyApp/__pycache__/
