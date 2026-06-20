@@ -133,10 +133,13 @@ app_ui = sui.page_sidebar(
         sui.hr(),
         sui.input_action_button("run_btn", "Run", class_="btn-primary w-100"),
 
-        sui.hr(),
-        sui.input_switch("dark_mode", "🌙  Dark mode", value=False),
-
         width=320,
+    ),
+
+    # Dark mode toggle — fixed top-right inside navbar
+    sui.tags.div(
+        sui.input_switch("dark_mode", "🌙", value=False),
+        style="position:fixed; top:0.6rem; right:1.25rem; z-index:1031;",
     ),
 
     # Dark mode JS handler
@@ -156,6 +159,18 @@ app_ui = sui.page_sidebar(
     sui.download_button("download_idt", "Download IDT Order Form"),
     sui.h6("Combined GenBank File (.gb)"),
     sui.download_button("download_gb", "Download Combined GenBank"),
+
+    # Footer
+    sui.tags.div(
+        sui.tags.hr(),
+        sui.tags.p(
+            "© 2026 Anthony Chan · ",
+            sui.tags.a("GitHub", href=_GITHUB_URL, target="_blank"),
+            " · MIT License",
+            style="text-align:center; color:#6c757d; font-size:0.8em; margin:0;",
+        ),
+        style="margin-top:2rem; padding-bottom:1rem;",
+    ),
 
     title=_TITLE,
     theme=shinyswatch.theme.flatly(),
