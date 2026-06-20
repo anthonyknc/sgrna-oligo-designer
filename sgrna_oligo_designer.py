@@ -71,7 +71,7 @@ def add_cloning_oligos(
     bot_suffix: str = "C",
 ) -> list[dict]:
     """
-    Add 'oligo_top' and 'oligo_bottom' keys to each row dict.
+    Add 'oligo_sense' and 'oligo_antisense' keys to each row dict.
 
     Parameters
     ----------
@@ -92,7 +92,7 @@ def add_cloning_oligos(
     Returns
     -------
     list[dict]
-        Same rows with 'oligo_top' and 'oligo_bottom' added in-place.
+        Same rows with 'oligo_sense' and 'oligo_antisense' added in-place.
     """
     if rows and seq_col not in rows[0]:
         raise ValueError(
@@ -100,8 +100,8 @@ def add_cloning_oligos(
         )
     for row in rows:
         seq = row[seq_col]
-        row["oligo_top"]    = top_prefix + seq
-        row["oligo_bottom"] = bot_prefix + reverse_complement(seq) + bot_suffix
+        row["oligo_sense"]     = top_prefix + seq
+        row["oligo_antisense"] = bot_prefix + reverse_complement(seq) + bot_suffix
     return rows
 
 
@@ -113,13 +113,13 @@ def build_idt_rows(
     Reshape oligo rows into IDT bulk upload format.
 
     Each sgRNA produces two interleaved rows (top then bottom):
-        <sgRNA_id>_top    | oligo_top    | 25nm | STD
-        <sgRNA_id>_bottom | oligo_bottom | 25nm | STD
+        <sgRNA_id>_top    | oligo_sense     | 25nm | STD
+        <sgRNA_id>_bottom | oligo_antisense | 25nm | STD
 
     Parameters
     ----------
     rows : list[dict]
-        Rows with sgRNA_id, oligo_top, and oligo_bottom keys.
+        Rows with sgRNA_id, oligo_sense, and oligo_antisense keys.
     id_col : str
         Key holding the sgRNA identifiers.
 
@@ -132,13 +132,13 @@ def build_idt_rows(
     for r in rows:
         idt_rows.append({
             "Name":         f"{r[id_col]}_s",
-            "Sequence":     r["oligo_top"],
+            "Sequence":     r["oligo_sense"],
             "Scale":        IDT_SCALE,
             "Purification": IDT_PURIF,
         })
         idt_rows.append({
             "Name":         f"{r[id_col]}_a",
-            "Sequence":     r["oligo_bottom"],
+            "Sequence":     r["oligo_antisense"],
             "Scale":        IDT_SCALE,
             "Purification": IDT_PURIF,
         })

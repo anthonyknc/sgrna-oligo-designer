@@ -91,10 +91,6 @@ app_ui = sui.page_sidebar(
     sui.output_text("summary"),
 
     sui.hr(),
-    sui.h4("Input preview"),
-    sui.output_table("input_table"),
-
-    sui.hr(),
     sui.h4("IDT order form preview"),
     sui.output_table("idt_table"),
 
@@ -171,12 +167,6 @@ def server(input, output, session):
             f"→ {n * 2} oligos ({n} sense + {n} antisense)"
             f"{gb_note}"
         )
-
-    @output
-    @render.table
-    def input_table():
-        req(processed_rows())
-        return pd.DataFrame(processed_rows())
 
     @output
     @render.table
