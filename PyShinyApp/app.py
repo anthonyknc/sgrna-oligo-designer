@@ -338,6 +338,7 @@ def server(input, output, session):
         return add_cloning_oligos(
             rows,
             seq_col=input.seq_col(),
+            id_col=input.id_col(),
             top_prefix=input.sense_prefix(),
             bot_prefix=input.antisense_prefix(),
             bot_suffix=input.antisense_suffix(),
