@@ -66,12 +66,22 @@ def reverse_complement(seq: str) -> str:
 def add_cloning_oligos(
     rows: list[dict],
     seq_col: str = "sgRNA_seq",
+    id_col: str  = "sgRNA_id",
     top_prefix: str = "CACCG",
     bot_prefix: str = "AAAC",
     bot_suffix: str = "C",
 ) -> list[dict]:
     """
-    Add 'oligo_sense' and 'oligo_antisense' keys to each row dict.
+    Validate, clean, and add 'oligo_sense' / 'oligo_antisense' keys to each row.
+
+    Each sgRNA sequence is passed through :func:`_validate_sgrna_seq` which:
+    - Removes all whitespace (including internal spaces from copy-paste)
+    - Uppercases the sequence
+    - Validates length (warns if ≠ 20 nt) and character set (ACGT only)
+    - Warns if a PAM-like NGG suffix is detected on sequences longer than 20 nt
+
+    The cleaned sequence is written back to ``row[seq_col]`` so downstream
+    functions (e.g. GenBank insertion) always use the sanitised version.
 
     Parameters
     ----------
@@ -79,6 +89,8 @@ def add_cloning_oligos(
         Input rows, each containing at minimum the sgRNA sequence column.
     seq_col : str
         Key holding the raw sgRNA sequences (20-mer, no PAM).
+    id_col : str
+        Key holding sgRNA identifiers; used in validation warnings / errors.
     top_prefix : str
         5' prefix appended to the sense strand.
         ipUSEPR default: 'CACCG'  (CACC overhang + G transcriptional start)
@@ -92,14 +104,17 @@ def add_cloning_oligos(
     Returns
     -------
     list[dict]
-        Same rows with 'oligo_sense' and 'oligo_antisense' added in-place.
+        Same rows with 'oligo_sense' and 'oligo_antisense' added in-place
+        and sgRNA sequences cleaned.
     """
     if rows and seq_col not in rows[0]:
         raise ValueError(
             f"Column '{seq_col}' not found. Available: {list(rows[0].keys())}"
         )
-    for row in rows:
-        seq = row[seq_col]
+    for i, row in enumerate(rows):
+        sgrna_id = row.get(id_col, f"row {i + 1}")
+        seq      = _validate_sgrna_seq(row[seq_col], sgrna_id)
+        row[seq_col]           = seq   # write cleaned sequence back
         row["oligo_sense"]     = top_prefix + seq
         row["oligo_antisense"] = bot_prefix + reverse_complement(seq) + bot_suffix
     return rows
@@ -199,6 +214,71 @@ def _validate_stuffer_sequence(stuffer_seq: str) -> None:
         )
 
 
+def _validate_sgrna_seq(seq: str, sgrna_id: str) -> str:
+    """
+    Clean and validate a raw sgRNA sequence.
+
+    Processing order:
+      1. Remove ALL whitespace (leading, trailing, and internal) with
+         ``"".join(seq.split())`` — handles spaces every 10 bases copied
+         from papers, Excel line breaks, and PDF paste artifacts.
+      2. Convert to uppercase.
+      3. Validate: non-empty, ACGT-only, exactly 20 nt (warn if not).
+      4. Warn if length > 20 and sequence ends in NGG — likely PAM
+         contamination where the user accidentally included the PAM.
+
+    Parameters
+    ----------
+    seq : str
+        Raw sgRNA sequence from the input table.
+    sgrna_id : str
+        sgRNA identifier used in error / warning messages.
+
+    Returns
+    -------
+    str
+        Cleaned, uppercase, whitespace-free sequence.
+
+    Raises
+    ------
+    ValueError
+        If the sequence is empty or contains non-ACGT characters.
+    """
+    seq = "".join(seq.split()).upper()
+
+    if not seq:
+        raise ValueError(
+            f"sgRNA '{sgrna_id}': sequence is empty. "
+            "Check that the sequence column is correct."
+        )
+
+    invalid = set(seq) - set("ACGT")
+    if invalid:
+        raise ValueError(
+            f"sgRNA '{sgrna_id}': contains non-ACGT characters: {sorted(invalid)}. "
+            "Only standard ACGT bases are supported. Remove ambiguity codes, "
+            "spaces, or non-DNA characters before running the script."
+        )
+
+    if len(seq) != 20:
+        print(
+            f"Warning: sgRNA '{sgrna_id}' is {len(seq)} nt "
+            f"(expected 20 nt for SpCas9). Proceeding anyway.",
+            file=sys.stderr,
+        )
+
+    # PAM contamination check — >20 nt ending in NGG
+    if len(seq) > 20 and seq[-1] == "G" and seq[-2] == "G":
+        print(
+            f"Warning: sgRNA '{sgrna_id}' is {len(seq)} nt and ends in "
+            f"'{seq[-3:]}' — this looks like an NGG PAM was accidentally "
+            "included in the sequence. Trim to 20 nt if so.",
+            file=sys.stderr,
+        )
+
+    return seq
+
+
 def validate_stuffer(vector_record, stuffer_seq: str) -> tuple[int, int]:
     """
     Locate the stuffer sequence in the vector across both strands.
@@ -294,7 +374,12 @@ def insert_sgrna(
     The stuffer is replaced in-place; all vector features downstream of the
     insertion site are coordinate-shifted if stuffer and sgRNA lengths differ
     (typically they are identical at 20 bp, so no shift is needed).
-    A new misc_RNA feature labelled with sgrna_id is added at the insertion site.
+
+    Features entirely within the stuffer region are removed before shifting —
+    this clears any stuffer annotation (misc_feature or similar) that was
+    present in the empty vector. A new misc_feature labelled with sgrna_id
+    is appended at the insertion site, and all features are sorted by start
+    position to follow GenBank convention.
 
     Parameters
     ----------
@@ -310,7 +395,8 @@ def insert_sgrna(
     Returns
     -------
     Bio.SeqRecord.SeqRecord
-        New record with sgRNA inserted and annotated.
+        New record with sgRNA inserted, stuffer annotation removed,
+        and features sorted by position.
     """
     from Bio.Seq import Seq
     from Bio.SeqFeature import SeqFeature, FeatureLocation
@@ -335,7 +421,15 @@ def insert_sgrna(
         f"{sgrna_id} cloned into {vector_record.name.strip()}"
     )
 
-    # Shift downstream features if insertion changes total length
+    # Remove features entirely within the stuffer region —
+    # these annotate the placeholder sequence that has been replaced.
+    new_record.features = [
+        f for f in new_record.features
+        if not (int(f.location.start) >= insert_start
+                and int(f.location.end) <= insert_end)
+    ]
+
+    # Shift features downstream of the insertion site
     if delta != 0:
         new_record.features = [
             _shift_feature(f, delta) if f.location.start >= insert_end else f
@@ -354,6 +448,9 @@ def insert_sgrna(
             },
         )
     )
+
+    # Sort features by start position (GenBank convention)
+    new_record.features.sort(key=lambda f: int(f.location.start))
 
     return new_record
 
@@ -456,8 +553,19 @@ def read_input(path: Path) -> list[dict]:
     """
     Read an input spreadsheet or delimited file into a list of row dicts.
     Supports .xlsx / .xlsm / .xls (via openpyxl), .csv, and .tsv.
+
+    Completely empty rows (all values empty or whitespace-only) are filtered
+    out — this prevents confusing errors from trailing blank rows that
+    openpyxl and csv.DictReader both return for some files.
     """
     suffix = path.suffix.lower()
+
+    def _non_empty(rows: list[dict]) -> list[dict]:
+        """Drop rows where every value is empty or whitespace-only."""
+        return [
+            row for row in rows
+            if any(str(v).strip() for v in row.values())
+        ]
 
     if suffix in {".xlsx", ".xlsm", ".xls"}:
         import openpyxl
@@ -468,15 +576,15 @@ def read_input(path: Path) -> list[dict]:
         rows     = [dict(zip(headers, (str(v) if v is not None else "" for v in row)))
                     for row in rows_iter]
         wb.close()
-        return rows
+        return _non_empty(rows)
 
     elif suffix == ".csv":
         with open(path, newline="", encoding="utf-8-sig") as fh:
-            return list(csv.DictReader(fh))
+            return _non_empty(list(csv.DictReader(fh)))
 
     elif suffix == ".tsv":
         with open(path, newline="", encoding="utf-8-sig") as fh:
-            return list(csv.DictReader(fh, delimiter="\t"))
+            return _non_empty(list(csv.DictReader(fh, delimiter="\t")))
 
     else:
         raise ValueError(f"Unsupported file type: '{suffix}'. Use .xlsx, .csv, or .tsv")
@@ -677,6 +785,7 @@ def main(argv=None):
     rows = add_cloning_oligos(
         rows,
         seq_col=args.seq_col,
+        id_col=args.id_col,
         top_prefix=args.sense_prefix,
         bot_prefix=args.antisense_prefix,
         bot_suffix=args.antisense_suffix,
