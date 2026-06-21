@@ -1,10 +1,20 @@
 # sgRNA Oligo Designer
 
-A command-line tool for designing sgRNA cloning oligos for CRISPR experiments.
+A command-line tool and web app for designing sgRNA cloning oligos for CRISPR experiments.
 Given a list of sgRNA sequences, it generates:
 
 1. **An IDT bulk order form** (`.xlsx`) — ready to upload directly to [IDT](https://www.idtdna.com) for oligo synthesis
 2. **Annotated plasmid maps** (`.gb`) — one GenBank file per sgRNA construct, ready to open in [SnapGene](https://www.snapgene.com) or [Benchling](https://www.benchling.com) for sequencing verification
+
+---
+
+## Web app
+
+A browser-based version is available — no installation or coding required:
+
+> 🌐 **https://anthonyknc.shinyapps.io/sgrna-oligo-designer**
+
+Upload your sgRNA table, provide your vector GenBank file and stuffer sequence, and download your IDT order form and annotated GenBank files directly in the browser. The web app supports all the same vectors and cloning systems as the CLI.
 
 ---
 
@@ -62,13 +72,15 @@ See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use 
 
 > **Note:** The default oligo design targets ***Sp*Cas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPR v2, LentiCRISPRv2GFP, etc). For other cloning systems with different overhangs, use the `--sense-prefix`, `--antisense-prefix`, and `--antisense-suffix` flags as described in the [**Using with other vectors**](#using-with-other-vectors-and-cloning-systems) section below.
 
+> **Tip:** The script automatically removes leading, trailing, and internal whitespace from sgRNA sequences and converts them to uppercase. Sequences copied from publications (which may include spaces every 10 bases) or pasted from PDFs are handled correctly.
+
 ---
 
 ## Step 3 — Run the script
 
 ### Example 1 — ipUSEPR vector (Excel input)
 
-The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**F1a-**P**uroR-Tag**R**FP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector 
+The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**F1a-**P**uroR-Tag**R**FP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector
 (PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
 [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/),
 [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/),
@@ -146,6 +158,10 @@ Each sgRNA produces two oligos: a sense (`_s`) and antisense (`_a`) strand.
 sgRNA sequence was inserted correctly before submitting for Sanger or
 whole-plasmid sequencing. Each file contains all original vector annotations
 plus a new `misc_feature` labelled with the sgRNA ID at the insertion site.
+The stuffer placeholder annotation is automatically removed from the output.
+The construct name in the LOCUS line (e.g. `ipUSEPR_sg_Luc_474`) matches
+the filename, so SnapGene and Benchling display the correct construct name
+when the file is imported.
 
 ---
 
@@ -247,7 +263,7 @@ optional arguments:
                             (e.g. 'example_sgRNA_seqs_plasmids_combined.gb')
   --gb-output               Output directory for .gb plasmid files.
                             Default: same folder as the input file
-  --vector-name             Custom name prepended to each plasmid filename.
+  --vector-name             Custom name prepended to each plasmid filename and LOCUS name.
                             Default: stem of the --vector filename (e.g. "ipUSEPR")
   --seq-col                 Column name for sgRNA sequences (default: sgRNA_seq)
   --id-col                  Column name for sgRNA identifiers (default: sgRNA_id)
@@ -298,6 +314,23 @@ specify the correct column names, e.g.:
 ```bash
 python3 sgrna_oligo_designer.py input.xlsx --seq-col guide_sequence --id-col guide_id
 ```
+
+**"sgRNA contains non-ACGT characters"**
+The sgRNA sequence column contains characters other than A, C, G, or T. Common
+causes include ambiguity codes (N, R, Y), RNA bases (U instead of T), or
+accidental inclusion of spaces or punctuation. Correct the sequence in your
+input file before re-running.
+
+**"Warning: sgRNA is N nt (expected 20 nt)"**
+The script detected a sequence that is not 20 nucleotides long. *Sp*Cas9
+requires a 20-nt guide for optimal activity. If the sequence was exported
+from a design tool, verify that it does not include the PAM or any cloning
+overhangs. The script proceeds anyway — this is a warning, not an error.
+
+**"Warning: ends in NGG — PAM may be included"**
+A sequence longer than 20 nt ends in NGG, which strongly suggests the PAM
+sequence was accidentally included. Trim the sequence to 20 nt by removing
+the trailing NGG before re-running.
 
 ---
 
