@@ -4,3 +4,4 @@ openpyxl
 biopython
 pandas
 jinja2
+rsconnect-python

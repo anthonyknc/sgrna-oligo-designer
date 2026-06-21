@@ -57,9 +57,37 @@ _GITHUB_SVG = """
 </svg>
 """
 
+# SVG icons for the dark mode button
+_MOON_SVG = """
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+     viewBox="0 0 24 24" fill="currentColor">
+  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+</svg>"""
+
+_SUN_SVG = """
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+     viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="5"/>
+  <line x1="12" y1="1"  x2="12" y2="3"/>
+  <line x1="12" y1="21" x2="12" y2="23"/>
+  <line x1="4.22"  y1="4.22"  x2="5.64"  y2="5.64"/>
+  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+  <line x1="1"  y1="12" x2="3"  y2="12"/>
+  <line x1="21" y1="12" x2="23" y2="12"/>
+  <line x1="4.22"  y1="19.78" x2="5.64"  y2="18.36"/>
+  <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22"/>
+</svg>"""
+
 _DARK_MODE_JS = """
 Shiny.addCustomMessageHandler('set-theme', function(theme) {
     document.documentElement.setAttribute('data-bs-theme', theme);
+    var moon = document.getElementById('dm-icon-moon');
+    var sun  = document.getElementById('dm-icon-sun');
+    if (moon && sun) {
+        moon.style.display = (theme === 'dark') ? 'none'   : 'flex';
+        sun.style.display  = (theme === 'dark') ? 'flex'   : 'none';
+    }
 });
 """
 
@@ -230,14 +258,27 @@ app_ui = sui.page_sidebar(
         width=320,
     ),
 
-    # --- Dark mode toggle: far right of navbar ---
+    # --- Dark mode toggle: circular icon button, top-right of navbar ---
     sui.tags.div(
-        sui.tags.span("🌙", style="font-size:1.1em;"),
-        sui.input_switch("dark_mode", "", value=False),
-        style=(
-            "position:fixed; top:0.6rem; right:0.5rem; z-index:1031;"
-            " display:flex; align-items:center; gap:0.3rem;"
+        sui.input_action_button(
+            "dark_mode_btn",
+            sui.HTML(
+                f'<span id="dm-icon-moon" style="display:flex;">'
+                f'{_MOON_SVG}</span>'
+                f'<span id="dm-icon-sun" style="display:none;">'
+                f'{_SUN_SVG}</span>'
+            ),
+            title="Toggle dark / light mode",
+            style=(
+                "width:2.2rem; height:2.2rem; padding:0; border-radius:50%;"
+                " background:transparent;"
+                " border:1px solid rgba(128,128,128,0.3);"
+                " cursor:pointer; display:inline-flex;"
+                " align-items:center; justify-content:center;"
+                " color:inherit; transition:border-color 0.2s, opacity 0.2s;"
+            ),
         ),
+        style="position:fixed; top:0.5rem; right:0.75rem; z-index:1031;",
     ),
 
     # --- JS & CSS ---
@@ -297,12 +338,17 @@ def server(input, output, session):
 
     # --- Dark mode ---
 
+    _dark = reactive.value(False)
+
     @reactive.effect
-    @reactive.event(input.dark_mode)
+    @reactive.event(input.dark_mode_btn)
     async def _apply_theme():
-        await session.send_custom_message(
-            "set-theme", "dark" if input.dark_mode() else "light"
-        )
+        if input.dark_mode_btn() > 0:   # ignore initial value of 0
+            new_state = not _dark()
+            _dark.set(new_state)
+            await session.send_custom_message(
+                "set-theme", "dark" if new_state else "light"
+            )
 
     # --- Stuffer source indicator ---
 
@@ -338,7 +384,6 @@ def server(input, output, session):
         return add_cloning_oligos(
             rows,
             seq_col=input.seq_col(),
-            id_col=input.id_col(),
             top_prefix=input.sense_prefix(),
             bot_prefix=input.antisense_prefix(),
             bot_suffix=input.antisense_suffix(),
