@@ -1,7 +1,7 @@
-LOCUS       sg_Luc_474             13013 bp    DNA     circular SYN 18-JUN-2026
+LOCUS       lentiCRISPRv2_sg_Luc_474 13013 bp    DNA     circular SYN 18-JUN-2026
 DEFINITION  sg_Luc_474 cloned into lentiCRISPRv2.
-ACCESSION   sg_Luc_474
-VERSION     sg_Luc_474
+ACCESSION   lentiCRISPRv2_sg_Luc_474
+VERSION     lentiCRISPRv2_sg_Luc_474
 KEYWORDS    .
 SOURCE      synthetic DNA construct
   ORGANISM  synthetic DNA construct

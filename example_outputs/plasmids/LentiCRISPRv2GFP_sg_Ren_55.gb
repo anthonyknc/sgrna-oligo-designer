@@ -1,7 +1,7 @@
-LOCUS       sg_Ren_55              13136 bp    DNA     circular SYN 18-JUN-2026
+LOCUS       LentiCRISPRv2GFP_sg_Ren_55 13136 bp    DNA     circular SYN 18-JUN-2026
 DEFINITION  sg_Ren_55 cloned into LentiCRISPRv2GFP.
-ACCESSION   sg_Ren_55
-VERSION     sg_Ren_55
+ACCESSION   LentiCRISPRv2GFP_sg_Ren_55
+VERSION     LentiCRISPRv2GFP_sg_Ren_55
 KEYWORDS    .
 SOURCE      synthetic DNA construct
   ORGANISM  synthetic DNA construct

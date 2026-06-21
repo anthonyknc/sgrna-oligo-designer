@@ -1,7 +1,7 @@
-LOCUS       sg_Rosa26               7880 bp    DNA     circular SYN 18-JUN-2026
+LOCUS       ipUSEPR_sg_Rosa26       7880 bp    DNA     circular SYN 18-JUN-2026
 DEFINITION  sg_Rosa26 cloned into ipUSEPR.
-ACCESSION   sg_Rosa26
-VERSION     sg_Rosa26
+ACCESSION   ipUSEPR_sg_Rosa26
+VERSION     ipUSEPR_sg_Rosa26
 KEYWORDS    .
 SOURCE      synthetic DNA construct
   ORGANISM  synthetic DNA construct

@@ -1,7 +1,7 @@
-LOCUS       sg_Rosa26              13136 bp    DNA     circular SYN 18-JUN-2026
+LOCUS       LentiCRISPRv2GFP_sg_Rosa26 13136 bp    DNA     circular SYN 18-JUN-2026
 DEFINITION  sg_Rosa26 cloned into LentiCRISPRv2GFP.
-ACCESSION   sg_Rosa26
-VERSION     sg_Rosa26
+ACCESSION   LentiCRISPRv2GFP_sg_Rosa26
+VERSION     LentiCRISPRv2GFP_sg_Rosa26
 KEYWORDS    .
 SOURCE      synthetic DNA construct
   ORGANISM  synthetic DNA construct
