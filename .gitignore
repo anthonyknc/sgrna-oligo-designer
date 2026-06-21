@@ -17,5 +17,6 @@ build/
 ~$*
 
 # PyShinyApp
-PyShinyApp/venv
+PyShinyApp/venv/
 PyShinyApp/__pycache__/
+PyShinyApp/rsconnect-python
