@@ -31,71 +31,53 @@ FEATURES             Location/Qualifiers
      promoter        complement(41..370)
                      /label=SV40 promoter
                      /note="SV40 enhancer and early promoter"
-                     /note="color: #ffffff; direction: LEFT"
      rep_origin      55..190
                      /label=SV40 ori
                      /note="SV40 origin of replication"
-                     /note="color: #ffff00"
      primer_bind     complement(109..128)
                      /label=SV40pro-F
                      /note="SV40 promoter/origin, forward primer"
-                     /note="color: black; sequence: TATTTATGCAGAGGCCGAGG"
      primer_bind     355..375
                      /label=pBABE 3'
                      /note="SV40 enhancer, reverse primer for pBABE vectors"
-                     /note="color: black; sequence: ACCCTAACTGACACACATTCC"
      rep_origin      complement(384..812)
                      /direction=LEFT
                      /label=f1 ori
                      /note="f1 bacteriophage origin of replication; arrow 
                      indicates direction of (+) strand synthesis"
-                     /note="color: #ffff00"
      primer_bind     complement(494..515)
                      /label=F1ori-F
                      /note="F1 origin, forward primer"
-                     /note="color: black; sequence: GTGGACTCTTGTTCCAAACTGG"
      primer_bind     706..725
                      /label=F1ori-R
                      /note="F1 origin, reverse primer"
-                     /note="color: black; sequence: AGGGAAGAAAGCGAAAGGAG"
      polyA_signal    858..1082
                      /label=bGH poly(A) signal
                      /note="bovine growth hormone polyadenylation signal"
-                     /note="color: #a6acb3"
      primer_bind     1071..1088
                      /label=BGH-rev
                      /note="Bovine growth hormone terminator, reverse primer. 
                      Also called BGH reverse"
-                     /note="color: black; sequence: TAGAAGGCACAGTCGAGG"
      LTR             1114..1347
                      /label=3' LTR (Delta-U3)
                      /note="self-inactivating 3' long terminal repeat (LTR) from
                      HIV-1"
-                     /note="color: #ffe4c4"
      misc_feature    1419..2007
                      /label=WPRE
                      /note="woodchuck hepatitis virus posttranscriptional 
                      regulatory element"
-                     /note="color: #ffffff"
      CDS             1525..1536
                      /codon_start=1
                      /product="Factor Xa recognition and cleavage site"
                      /label=Factor Xa site
-                     /note="color: #cc99b2
-                     Cleavage site after base 1536"
                      /translation="IEGR"
      primer_bind     1934..1954
                      /label=WPRE-R
                      /note="WPRE, reverse primer"
-                     /note="color: black; sequence: CATAGCGTAAAAGGAGCAACA"
      CDS             complement(join(2026..2736,2737..2739,2740..2742))
                      /codon_start=1
                      /product="enhanced GFP"
                      /label=EGFP
-                     /note="This feature has 3 segments:
-                        1: 2026 .. 2736 / #05fc14
-                        2: 2737 .. 2739 / #05fc14 / 1a
-                        3: 2740 .. 2742 / #05fc14"
                      /translation="MVSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTL
                      KFICTTGKLPVPWPTLVTTLTYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDD
                      GNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIK
@@ -104,11 +86,9 @@ FEATURES             Location/Qualifiers
      primer_bind     complement(2068..2089)
                      /label=EGFP-C
                      /note="EGFP, forward primer"
-                     /note="color: black; sequence: CATGGTCCTGCTGGAGTTCGTG"
      primer_bind     2417..2436
                      /label=EXFP-R
                      /note="For distinguishing EGFP variants, reverse primer"
-                     /note="color: black; sequence: GTCTTGTAGTTGCCGTCGTC"
      CDS             complement(2743..2799)
                      /codon_start=1
                      /product="2A peptide from porcine teschovirus-1 
@@ -117,22 +97,18 @@ FEATURES             Location/Qualifiers
                      /note="Eukaryotic ribosomes fail to insert a peptide bond 
                      between the Gly and Pro residues, yielding separate 
                      polypeptides."
-                     /note="color: #cc99b2
-                     Cleavage site after base 2745"
                      /translation="ATNFSLLKQAGDVEENPGP"
      CDS             complement(2809..2832)
                      /codon_start=1
                      /product="FLAG(R) epitope tag, followed by an enterokinase 
                      cleavage site"
                      /label=FLAG
-                     /note="color: #cc99b2"
                      /translation="DYKDDDDK"
      CDS             complement(2833..2880)
                      /codon_start=1
                      /product="bipartite nuclear localization signal from 
                      nucleoplasmin"
                      /label=nucleoplasmin NLS
-                     /note="color: #993366"
                      /translation="KRPAATKKAGQAKKKK"
      CDS             complement(2881..6984)
                      /codon_start=1
@@ -140,7 +116,6 @@ FEATURES             Location/Qualifiers
                      pyogenes Type II CRISPR/Cas system"
                      /label=Cas9
                      /note="generates RNA-guided double strand breaks in DNA"
-                     /note="color: #993366"
                      /translation="MDKKYSIGLDIGTNSVGWAVITDEYKVPSKKFKVLGNTDRHSIKK
                      NLIGALLFDSGETAEATRLKRTARRRYTRRKNRICYLQEIFSNEMAKVDDSFFHRLEES
                      FLVEEDKKHERHPIFGNIVDEVAYHEKYPTIYHLRKKLVDSTDKADLRLIYLALAHMIK
@@ -171,7 +146,6 @@ FEATURES             Location/Qualifiers
                      pyogenes Type II CRISPR/Cas system"
                      /label=Cas9
                      /note="generates RNA-guided double strand breaks in DNA"
-                     /note="color: #993366"
                      /translation="MDKKYSIGLDIGTNSVGWAVITDEYKVPSKKFKVLGNTDRHSIKK
                      NLIGALLFDSGETAEATRLKRTARRRYTRRKNRICYLQEIFSNEMAKVDDSFFHRLEES
                      FLVEEDKKHERHPIFGNIVDEVAYHEKYPTIYHLRKKLVDSTDKADLRLIYLALAHMIK
@@ -200,45 +174,35 @@ FEATURES             Location/Qualifiers
                      /label=Kozak sequence
                      /note="vertebrate consensus sequence for strong initiation 
                      of translation (Kozak, 1987)"
-                     /note="color: #a6acb3"
                      /regulatory_class="other"
      promoter        complement(7009..7220)
                      /label=EF-1-alpha core promoter
                      /note="core promoter for human elongation factor 
                      EF-1-alpha"
-                     /note="color: #ffffff; direction: LEFT"
      misc_RNA        complement(7282..7357)
                      /label=gRNA scaffold
                      /note="guide RNA scaffold for the Streptococcus pyogenes 
                      CRISPR/Cas9 system"
-                     /note="color: #00ccff; direction: LEFT"
      misc_feature    complement(7358..7372)
                      /label=stuffer
-                     /note="color: #339966; direction: LEFT"
      misc_feature    complement(7373)
                      /label=Start
-                     /note="color: #a6acb3; direction: LEFT"
      promoter        complement(7374..7622)
                      /label=U6 promoter
                      /note="RNA polymerase III promoter for human U6 snRNA 
                      (Domitrovich & Kunkel, 2003)"
-                     /note="color: #ffffff; direction: LEFT"
      primer_bind     complement(7432..7451)
                      /label=LKO.1 5'
                      /note="Human U6 promoter, forward primer"
-                     /note="color: black; sequence: GACTATCATATGCTTACCGT"
      primer_bind     complement(7602..7622)
                      /label=HU6_seqF
-                     /note="color: #cc99ff; direction: LEFT"
      primer_bind     complement(7602..7622)
                      /label=hU6-F
                      /note="Human U6 promoter, forward primer"
-                     /note="color: black; sequence: GAGGGCCTATTTCCCATGATT"
      misc_feature    7673..7790
                      /label=cPPT/CTS
                      /note="central polypurine tract and central termination 
                      sequence of HIV-1"
-                     /note="color: #ffe4c4"
      CDS             complement(8088..8132)
                      /codon_start=1
                      /product="antigenic peptide corresponding to amino acids 
@@ -246,45 +210,36 @@ FEATURES             Location/Qualifiers
                      et al., 2013)"
                      /label=gp41 peptide
                      /note="recognized by the 2H10 single-chain llama nanobody"
-                     /note="color: #cc99b2"
                      /translation="KNEQELLELDKWASL"
      misc_feature    8317..8550
                      /label=RRE
                      /note="The Rev response element (RRE) of HIV-1 allows for 
                      Rev-dependent mRNA export from the nucleus to the 
                      cytoplasm."
-                     /note="color: #ffe4c4"
      misc_feature    9043..9168
                      /label=HIV-1 Psi
                      /note="packaging signal of human immunodeficiency virus 
                      type 1"
-                     /note="color: #ffe4c4"
      LTR             9215..9395
                      /label=5' LTR (truncated)
                      /note="truncated 5' long terminal repeat (LTR) from HIV-1"
-                     /note="color: #ffe4c4"
      promoter        complement(9413..9611)
                      /label=CMV promoter
                      /note="human cytomegalovirus (CMV) immediate early 
                      promoter"
-                     /note="color: #ffffff; direction: LEFT"
      primer_bind     complement(9438..9458)
                      /label=CMV-F
                      /note="Human CMV immediate early promoter, forward primer"
-                     /note="color: black; sequence: CGCAAATGGGCGGTAGGCGTG"
      enhancer        9613..9992
                      /label=CMV enhancer
                      /note="human cytomegalovirus immediate early enhancer"
-                     /note="color: #ffffff"
      primer_bind     10164..10183
                      /label=pRS-marker
                      /note="pRS vectors, use to sequence yeast selectable 
                      marker"
-                     /note="color: black; sequence: CGGCATCAGAGCAGATTGTA"
      promoter        10258..10362
                      /gene="bla"
                      /label=AmpR promoter
-                     /note="color: #ffffff; direction: RIGHT"
      CDS             join(10363..10431,10432..11223)
                      /codon_start=1
                      /gene="bla"
@@ -292,10 +247,6 @@ FEATURES             Location/Qualifiers
                      /label=AmpR
                      /note="confers resistance to ampicillin, carbenicillin, and
                      related antibiotics"
-                     /note="This feature has 2 segments:
-                        1: 10363 .. 10431 / #ccffcc / signal sequence
-                        2: 10432 .. 11223 / #ccffcc
-                     Cleavage site after base 10431"
                      /translation="MSIQHFRVALIPFFAAFCLPVFAHPETLVKVKDAEDQLGARVGYI
                      ELDLNSGKILESFRPEERFPMMSTFKVLLCGAVLSRIDAGQEQLGRRIHYSQNDLVEYS
                      PVTEKHLTDGMTVRELCSAAITMSDNTAANLLLTTIGGPKELTAFLHNMGDHVTRLDRW
@@ -305,34 +256,25 @@ FEATURES             Location/Qualifiers
      primer_bind     complement(10581..10600)
                      /label=Amp-R
                      /note="Ampicillin resistance gene, reverse primer"
-                     /note="color: black; sequence: ATAATACCGCGCCACATAGC"
      rep_origin      11394..11982
                      /direction=RIGHT
                      /label=ori
                      /note="high-copy-number ColE1/pMB1/pBR322/pUC origin of 
                      replication"
-                     /note="color: #ffff00"
      primer_bind     11883..11902
                      /label=pBR322ori-F
                      /note="pBR322 origin, forward primer"
-                     /note="color: black; sequence: GGGAAACGCCTGGTATCTTT"
      primer_bind     12136..12153
                      /label=L4440
                      /note="L4440 vector, forward primer"
-                     /note="color: black; sequence: AGCGAGTCAGTGAGCGAG"
      protein_bind    12270..12291
                      /label=CAP binding site
                      /bound_moiety="E. coli catabolite activator protein"
                      /note="CAP binding activates transcription in the presence 
                      of cAMP."
-                     /note="color: #31849b"
      promoter        join(12306..12311,12312..12329,12330..12336)
                      /label=lac promoter
                      /note="promoter for the E. coli lac operon"
-                     /note="This forward directional feature has 3 segments:
-                        1: 12306 .. 12311 / #ffffff / -35
-                        2: 12312 .. 12329 / #ffffff
-                        3: 12330 .. 12336 / #ffffff / -10"
      protein_bind    12344..12360
                      /label=lac operator
                      /bound_moiety="lac repressor encoded by lacI"
@@ -340,32 +282,25 @@ FEATURES             Location/Qualifiers
                      inhibit transcription in E. coli. This inhibition can be 
                      relieved by adding lactose or 
                      isopropyl-beta-D-thiogalactopyranoside (IPTG)."
-                     /note="color: #31849b"
      primer_bind     12349..12371
                      /label=M13/pUC Reverse
                      /note="In lacZ gene"
-                     /note="color: black; sequence: AGCGGATAACAATTTCACACAGG"
      primer_bind     12368..12384
                      /label=M13 rev
                      /note="common sequencing primer, one of multiple similar 
                      variants"
-                     /note="color: #a020f0; direction: RIGHT"
      primer_bind     12368..12384
                      /label=M13 Reverse
                      /note="In lacZ gene. Also called M13-rev"
-                     /note="color: black; sequence: CAGGAAACAGCTATGAC"
      polyA_signal    12433..12554
                      /label=SV40 poly(A) signal
                      /note="SV40 polyadenylation signal"
-                     /note="color: #a6acb3"
      primer_bind     complement(12444..12463)
                      /label=EBV-rev
                      /note="SV40 polyA terminator, reverse primer"
-                     /note="color: black; sequence: GTGGTTTGTCCAAACTCATC"
      primer_bind     12498..12517
                      /label=SV40pA-R
                      /note="SV40 polyA, reverse primer"
-                     /note="color: black; sequence: GAAATTTGTGATGCTATTGC"
      CDS             complement(12684..13058)
                      /codon_start=1
                      /gene="Sh ble from Streptoalloteichus hindustanus"
@@ -373,14 +308,12 @@ FEATURES             Location/Qualifiers
                      /label=BleoR
                      /note="confers resistance to bleomycin, phleomycin, and 
                      Zeocin(TM)"
-                     /note="color: #ccffcc"
                      /translation="MAKLTSAVPVLTARDVAGAVEFWTDRLGFSRDFVEDDFAGVVRDD
                      VTLFISAVQDQVVPDNTLAWVWVRGLDELYAEWSEVVSTNFRDASGPAMTEIGEQPWGR
                      EFALRDPAGNCVHFVAEEQD"
      promoter        complement(13077..13124)
                      /label=EM7 promoter
                      /note="synthetic bacterial promoter "
-                     /note="color: #ffffff; direction: LEFT"
 ORIGIN
         1 gatcagatcc gaaaatggat atacaagctc ccgggagctt tttgcaaaag cctaggcctc
        61 caaaaaagcc tcctcactac ttctggaata gctcagaggc agaggcggcc tcggcctctg

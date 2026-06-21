@@ -1,5 +1,5 @@
 LOCUS       lentiCRISPRv2          14873 bp    DNA     circular SYN 18-JUN-2026
-DEFINITION  .
+DEFINITION  synthetic circular DNA
 ACCESSION   .
 VERSION     .
 KEYWORDS    .
@@ -17,85 +17,63 @@ FEATURES             Location/Qualifiers
      LTR             828..1016
                      /note="5' LTR (R and U5 portions; U3 was replaced by the
                      CMV promoter)"
-                     /note="color: #ffe4c4"
      misc_feature    1067..1204
                      /label=Psi
                      /note="Psi"
-                     /note="color: #a6acb3"
      misc_feature    1124..1127
                      /note="SD; splice donor"
-                     /note="color: #a6acb3"
      misc_feature    1171..1535
                      /label=gag
                      /note="gag"
-                     /note="color: #a6acb3"
      misc_feature    1681..1922
                      /label=RRE
                      /note="RRE"
-                     /note="color: #a6acb3"
      misc_feature    2440..2557
                      /note="CPPT; central polypurine tract"
-                     /note="color: #a6acb3"
      promoter        2608..2856
                      /label=U6 promoter
                      /note="Human U6"
-                     /note="color: #ffffff; direction: RIGHT"
      primer_bind     2608..2628
                      /label=HU6_seqF
-                     /note="color: #cc99ff; direction: RIGHT"
      misc_feature    2857
                      /label=Start
-                     /note="color: #a6acb3; direction: RIGHT"
      misc_feature    2858..4737
                      /label=stuffer
                      /note="Filler (digest with BsmBI to replace filler with
                      sgRNA oligos)"
-                     /note="color: #339966; direction: RIGHT"
      misc_feature    4738..4819
                      /label=chimeric RNA backbone 1 (BsmBI)
                      /note="chimeric RNA backbone 1 (BsmBI)"
-                     /note="color: #a6acb3"
      promoter        4832..5087
                      /note="EFS-NS"
-                     /note="color: #ffffff"
      primer_bind     complement(4894..4911)
                      /label=ipU_EF1a_seqR
-                     /note="color: #a020f0; direction: LEFT"
      misc_feature    5111..9214
                      /label=hSpCas9
                      /note="hSpCas9"
-                     /note="color: #a6acb3"
      misc_feature    9215..9262
                      /label=NLS
                      /note="NLS"
-                     /note="color: #a6acb3"
      misc_feature    9263..9286
                      /label=FLAG
                      /note="FLAG"
-                     /note="color: #a6acb3"
      misc_feature    9287..9352
                      /label=P2A
                      /note="P2A"
-                     /note="color: #a6acb3"
      CDS             9353..9949
                      /label=Puro
                      /note="Puro"
-                     /note="color: #993366; direction: RIGHT"
      misc_binding    9965..10553
                      /note="WPRE"
-                     /note="color: #a6acb3"
      LTR             10624..10859
                      /label=3' LTR
                      /note="3' LTR"
-                     /note="color: #ffe4c4"
      rep_origin      13308..13533
                      /label=ColE1
                      /note="ColE1"
-                     /note="color: #ffff00"
      misc_feature    13745..14551
                      /label=AmpR
                      /note="AmpR"
-                     /note="color: #a6acb3"
 ORIGIN
         1 gtcgacggat cgggagatct cccgatcccc tatggtgcac tctcagtaca atctgctctg
        61 atgccgcata gttaagccag tatctgctcc ctgcttgtgt gttggaggtc gctgagtagt

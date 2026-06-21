@@ -16,103 +16,82 @@ FEATURES             Location/Qualifiers
                      /organism="synthetic DNA construct"
      source          join(5283..7877,1..5282)
                      /mol_type="other DNA"
-                     /note="color: #ffffff"
                      /organism="synthetic DNA construct"
      promoter        60..308
                      /label=U6 promoter
                      /label=U6
                      /note="RNA polymerase III promoter for human U6 snRNA"
-                     /note="color: #ffffff; direction: RIGHT"
      primer_bind     60..80
                      /label=U6-Scaffold Fwd Primer (w/o gibson Adapters)
-                     /note="color: #a020f0; direction: RIGHT"
      primer_bind     60..80
                      /label=HU6_seqF
                      /label=*HU6
-                     /note="color: #cc99ff; direction: RIGHT"
      misc_feature    285..309
                      /label=GA_arm
-                     /note="color: #------"
      misc_feature    309
                      /label=Start
                      /label=Transcriptional start
                      /note="/feature_type=Transcriptional start"
-                     /note="color: #a6acb3; direction: RIGHT"
      misc_feature    310..326
                      /label=stuffer
                      /label=Clone_sgRNA_here (17 bp)
                      /note="/feature_type=Clone_sgRNA_here"
-                     /note="color: #339966; direction: RIGHT"
      misc_feature    327..418
                      /label=Improved sgRNA Scaffold
                      /label=Improved sgRNA Scaffold (BsmBI)
                      /label=Improved sgRNA Scaffold (Esp3I)
-                     /note="color: #ffff00"
      misc_feature    327..331
                      /label=Use Chen (2013) tracrRNA
-                     /note="color: #ff0000"
-     Others          331..351
+     misc_feature    331..351
                      /label=Modified Stem Loop
-                     /note="color: #993366"
+                     /label=nonstandard type: Others
      primer_bind     complement(398..418)
                      /label=U6-Scaffold Rev Primer (w/o gibson Adapters)
-                     /note="color: #a020f0; direction: LEFT"
      misc_feature    413..418
                      /label=poly dT stop
                      /note="/feature_type=poly dT stop"
-                     /note="color: #a6acb3"
-     Others          complement(419..448)
+     misc_feature    complement(419..448)
                      /direction=LEFT
                      /label=gAR
-                     /note="color: #ff0000"
+                     /label=nonstandard type: Others
      primer_bind     complement(424..448)
                      /label=R-Priming Site
-                     /note="color: #00ff00; direction: LEFT"
      misc_feature    430..454
                      /label=GA_arm
-                     /note="color: #------"
      primer_bind     449..469
                      /label=FSR-19 (w/o Gibson Adapters)
-                     /note="color: #a020f0; direction: RIGHT"
      promoter        474..685
                      /label=EF-1-alpha core promoter
                      /label=EF1a
                      /note="core promoter for human elongation factor
                      EF-1-alpha"
-                     /note="color: #ffffff; direction: RIGHT"
      primer_bind     700..756
                      /label=Puro Fwd + gBF
-                     /note="color: #a020f0; direction: RIGHT"
      primer_bind     700..756
                      /label=FSR-50 (Full Primer)
-                     /note="color: #a020f0; direction: RIGHT"
-     Others          700..729
+     misc_feature    700..729
                      /direction=RIGHT
                      /label=gBF Adapter
-                     /note="color: #ff0000"
+                     /label=nonstandard type: Others
      misc_feature    731..738
                      /label=KOZAK
-                     /note="color: #ff00ff"
      CDS             736..1332
                      /codon_start=1
                      /gene="pac from Streptomyces alboniger"
                      /product="puromycin N-acetyltransferase"
                      /label=PuroR
                      /note="confers resistance to puromycin"
-                     /note="color: #ccffcc"
                      /translation="MTEYKPTVRLATRDDVPRAVRTLAAAFADYPATRHTVDPDRHIER
                      VTELQELFLTRVGLDIGKVWVADDGAAVAVWTTPESVEAGAVFAEIGPRMAELSGSRLA
                      AQQQMEGLLAPHRPKEPAWFLATVGVSPDHQGKGLGSAVVLPGVEAAERAGVPAFLETS
                      APRNLPFYERLGFTVTADVEVPEGPRTWCMTRKPGA"
-     SeqPrimers      1241..1257
+     misc_feature    1241..1257
                      /label=ipU_upP2A_seqF
-                     /note="color: #ff99cc"
+                     /label=nonstandard type: SeqPrimers
      primer_bind     complement(1312..1362)
                      /label=FSR-51 (Puro Rev + 30bp of P2A Homology)
-                     /note="color: #a020f0; direction: LEFT"
      primer_bind     1333..1383
                      /label=FSR-52 (P2A Fwd + 30bp FSR-51 homology)
-                     /note="color: #ff0000; direction: RIGHT"
      CDS             1348..1404
                      /codon_start=1
                      /product="2A peptide from porcine teschovirus-1
@@ -121,7 +100,6 @@ FEATURES             Location/Qualifiers
                      /note="Eukaryotic ribosomes fail to insert a peptide bond 
                      between the Gly and Pro residues, yielding separate 
                      polypeptides."
-                     /note="color: #------"
                      /translation="ATNFSLLKQAGDVEENPGP"
      CDS             1405..2118
                      /codon_start=1
@@ -130,7 +108,6 @@ FEATURES             Location/Qualifiers
                      /label=tRFP
                      /label=TagRFP
                      /note="mammalian codon-optimized"
-                     /note="color: #ff0000"
                      /translation="MVSKGEELIKENMHMKLYMEGTVNNHHFKCTSEGEGKPYEGTQTM
                      RIKVVEGGPLPFAFDILATSFMYGSRTFINHTQGIPDFFKQSFPEGFTWERVTTYEDGG
                      VLTATQDTSLQDGCLIYNVKIRGVNFPSNGPVMQKKTLGWEANTEMLYPADGGLEGRSD
@@ -138,48 +115,42 @@ FEATURES             Location/Qualifiers
                      ARYCDLPSKLGHKLN"
      primer_bind     1405..1425
                      /label=FSR-48 (w/o Gibson Adapters)
-                     /note="color: #a020f0; direction: RIGHT"
      gene            1423..2109
                      /label=TagRFP_ori
-                     /note="color: #a6acb3; direction: RIGHT"
-     cloning_primers 1423..1445
+     misc_feature    1423..1445
                      /label=TagRFP_f (65)
-                     /note="color: #a6acb3"
-     sgRNA           1693..1712
+                     /label=nonstandard type: cloning_primers
+     misc_feature    1693..1712
                      /label=sg_tRFP657_294
-                     /note="color: #a6acb3"
-     cloning_primers complement(2091..2109)
+                     /label=nonstandard type: sgRNA
+     misc_feature    complement(2091..2109)
                      /direction=LEFT
                      /label=TagRFP_r (65)
-                     /note="color: #a6acb3"
+                     /label=nonstandard type: cloning_primers
      primer_bind     complement(2098..2148)
                      /label=FSR-49 (Full Primer)
-                     /note="color: #a020f0; direction: LEFT"
-     Others          complement(2119..2148)
+     misc_feature    complement(2119..2148)
                      /direction=LEFT
                      /label=gBR (Rev Comp)
-                     /note="color: #ff0000"
-     SeqPrimers      complement(2164..2183)
+                     /label=nonstandard type: Others
+     misc_feature    complement(2164..2183)
                      /label=RFPdn_seqR
-                     /note="color: #ff99cc"
+                     /label=nonstandard type: SeqPrimers
      misc_feature    2171..2759
                      /label=WPRE
                      /note="woodchuck hepatitis virus posttranscriptional
                      regulatory element"
-                     /note="color: #ffffff"
-     SeqPrimers      complement(2244..2264)
+     misc_feature    complement(2244..2264)
                      /label=ipU_RFPdn_seqR
-                     /note="color: #ff99cc"
+                     /label=nonstandard type: SeqPrimers
      LTR             3288..3468
                      /label=5' LTR (truncated)
                      /note="truncated 5' long terminal repeat (LTR) from HIV-1"
-                     /note="color: #ffe4c4"
      rep_origin      complement(3530..4118)
                      /direction=LEFT
                      /label=ori
                      /note="high-copy-number ColE1/pMB1/pBR322/pUC origin of 
                      replication"
-                     /note="color: #ffff00"
      CDS             complement(4289..5149)
                      /codon_start=1
                      /gene="bla"
@@ -189,7 +160,6 @@ FEATURES             Location/Qualifiers
                      and related antibiotics"
                      /note="This feature has 2 segments: 1: 6884 .. 7675 /
                      #ccffcc 2: 7676 .. 7744 / #ccffcc / signal sequence"
-                     /note="color: #993366"
                      /translation="MSIQHFRVALIPFFAAFCLPVFAHPETLVKVKDAEDQLGARVGYI
                      ELDLNSGKILESFRPEERFPMMSTFKVLLCGAVLSRIDAGQEQLGRRIHYSQNDLVEYS
                      PVTEKHLTDGMTVRELCSAAITMSDNTAANLLLTTIGGPKELTAFLHNMGDHVTRLDRW
@@ -199,36 +169,29 @@ FEATURES             Location/Qualifiers
      promoter        complement(5150..5254)
                      /gene="bla"
                      /label=AmpR promoter
-                     /note="color: #ffffff; direction: LEFT"
      enhancer        5519..5898
                      /label=CMV enhancer
                      /note="human cytomegalovirus immediate early enhancer"
-                     /note="color: #ffffff"
      promoter        5900..6098
                      /label=CMV promoter
                      /note="human cytomegalovirus (CMV) immediate early
                      promoter"
-                     /note="color: #ffffff; direction: RIGHT"
      LTR             6116..6296
                      /label=5' LTR (truncated)
                      /note="truncated 5' long terminal repeat (LTR) from HIV-1"
-                     /note="color: #ffe4c4"
      misc_feature    6343..6468
                      /label=HIV-1 Psi
                      /note="packaging signal of human immunodeficiency virus
                      type 1"
-                     /note="color: #ffe4c4"
      misc_feature    6967..7200
                      /label=RRE
                      /note="The Rev response element (RRE) of HIV-1 allows for 
                      Rev-dependent mRNA export from the nucleus to the 
                      cytoplasm."
-                     /note="color: #ffe4c4"
      misc_feature    7727..7844
                      /label=cPPT/CTS
                      /note="central polypurine tract and central termination
                      sequence of HIV-1"
-                     /note="color: #ffe4c4"
 ORIGIN
         1 tggttagtac cgggcccggg tcgactagtg atcagtgtga gggagtgtaa agctggtttg
        61 agggcctatt tcccatgatt ccttcatatt tgcatatacg atacaaggct gttagagaga
