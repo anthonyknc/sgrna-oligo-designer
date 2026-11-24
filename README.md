@@ -9,9 +9,9 @@ Given a list of sgRNA sequences, it generates:
 You choose a vector and a Type IIS restriction enzyme (*Bsm*BI/Esp3I, *Bbs*I/BpiI, *Bsa*I and SapI are listed first; any other commercially available Type IIS enzyme can be chosen under **Other…**, and vectors cut by two different enzymes, such as BstXI + BlpI, are supported too). The app cuts the
 vector in silico and reads the overhangs and the stuffer from it, so there is nothing to type in by hand.
 
-> 🌐 **https://anthonyknc.shinyapps.io/sgrna-oligo-designer**
+> 🌐 **https://anthonyknc-sgrna-oligo-designer.share.connect.posit.cloud/**
 
-![sgRNA Oligo Designer: the cloning site, results table and downloads](docs/screenshot.jpg)
+![sgRNA Oligo Designer: the cloning site, results table and downloads](docs/screenshot.png)
 
 No installation or coding required. Click **Load example sgRNAs** in the app to try it first. The app has a light and a dark mode, and the **Guide** tab explains every option.
 

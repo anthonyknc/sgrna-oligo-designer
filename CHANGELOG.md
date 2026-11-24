@@ -11,6 +11,7 @@ Versions are `major.minor`. The version in the app header, `_VERSION` in `PyShin
 - Nine bundled vectors, each labelled with its Addgene number (or PMID) and default enzyme(s): new are
   lentiGuide-Puro, pX330, pU6-(BbsI)_CBh-Cas9-T2A-mCherry-H1, phH1-gRNA, pU6-sgRNA EF1Alpha-puro-T2A-BFP
   and pMCB306. lentiCRISPR v2 and LentiCRISPRv2GFP were replaced by the Addgene records (same sequences).
+- The app is hosted on Posit Connect Cloud.
 - Guide links open in a new tab.
 - New interface: navbar with Design and Guide tabs, light and dark mode, help popovers, including one for
   Load example sgRNAs.
