@@ -90,7 +90,9 @@ Things that span functions and are easy to miss:
 - **Enzyme-based design (DONE; replaced the manual overhang flags and the stuffer input).** User picks vector + enzyme; the tool
   finds the flanking sites, simulates the cut, derives the 4-nt overhangs, and builds oligos and
   the plasmid from the real cut ends. The stuffer is inferred (fragment between cuts), not typed.
-  - Enzymes: BsmBI, Esp3I, BsaI, BbsI (`ENZYMES`; add more by name, geometry comes from Bio.Restriction).
+  - Enzymes: BsmBI, Esp3I, BsaI, BbsI are listed first (`ENZYMES`); "Other…" offers every eligible
+    Bio.Restriction enzyme (`all_enzymes()`: commercial, plain ACGT site >= 4 nt, non-palindromic,
+    single downstream cut, 3-5 nt 5' overhang; ~40 enzymes incl. 3-nt SapI/BspQI/LguI).
   - Support **both** layouts: recognition sites inside the stuffer (lost on cutting, e.g.
     lentiCRISPR) and sites that stay in the backbone.
   - Warn if a spacer contains the enzyme site on either strand; error if the vector has

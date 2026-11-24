@@ -19,6 +19,7 @@ from shiny import ui as sui
 from sgrna_oligo_designer import (
     ENZYMES,
     add_cloning_oligos,
+    all_enzymes,
     build_idt_rows,
     build_plasmid_records,
     find_cloning_site,
@@ -47,6 +48,7 @@ _VECTORS = {
     "LentiCRISPRv2GFP": ("LentiCRISPRv2GFP", _HERE / "vectors" / "LentiCRISPRv2GFP.gb"),
 }
 _UPLOAD = "upload"
+_OTHER = "__other__"      # enzyme dropdown value that reveals the full enzyme search
 
 _G_CHOICES = {
     "always":    "Always add G (standard)",
@@ -179,7 +181,10 @@ _TIP_VECTOR = (
 _TIP_ENZYME = (
     "The Type IIS enzyme used for sgRNA cloning. The app cuts the vector in silico at the "
     "enzyme's two sites and reads the overhangs from the cuts, so you never type them. The vector "
-    "must have exactly two sites for the enzyme you pick.",
+    "must have exactly two sites for the enzyme you pick. Choose “Other…” to search every "
+    "commercially available Type IIS enzyme with a 3–5 nt overhang (e.g. SapI, BspQI, BtgZI). "
+    "For an enzyme not on the common list, check that it suits your vector (for example "
+    "methylation sensitivity) and follow the supplier's protocol.",
 )
 _TIP_G = (
     "The human U6 promoter starts transcription best at a G. ‘Always’ adds a G to every sgRNA "
@@ -301,7 +306,16 @@ app_ui = sui.page_sidebar(
         sui.input_select(
             "enzyme",
             _label("Restriction enzyme", *_TIP_ENZYME),
-            list(ENZYMES),
+            {**{e: e for e in ENZYMES}, _OTHER: "Other…"},
+        ),
+        sui.panel_conditional(
+            f"input.enzyme == '{_OTHER}'",
+            sui.input_selectize(
+                "other_enzyme",
+                "Search all enzymes",
+                {n: f"{n}  ({e.site}, {e.overhang_len}-nt overhang)" for n, e in all_enzymes().items()},
+                selected="SapI",
+            ),
         ),
         sui.input_text(
             "vector_name",
@@ -480,7 +494,7 @@ def server(input, output, session):
 
     @reactive.effect
     @reactive.event(
-        input.vector_choice, input.vector_file, input.enzyme, input.orientation,
+        input.vector_choice, input.vector_file, input.enzyme, input.other_enzyme, input.orientation,
         input.g_mode, input.seq_col, input.id_col, input.sgrna_file,
         ignore_init=True,
     )
@@ -529,8 +543,12 @@ def server(input, output, session):
         return input.vector_choice()
 
     @reactive.calc
+    def enzyme_name() -> str:
+        return input.other_enzyme() if input.enzyme() == _OTHER else input.enzyme()
+
+    @reactive.calc
     def cloning_site():
-        return find_cloning_site(vector_record(), input.enzyme(), input.orientation())
+        return find_cloning_site(vector_record(), enzyme_name(), input.orientation())
 
     @output
     @render.ui

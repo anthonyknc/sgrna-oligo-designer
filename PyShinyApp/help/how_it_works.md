@@ -17,7 +17,11 @@ The app checks the following and tells you if one fails:
 - The vector must be circular and have **exactly two** sites for the chosen enzyme. If you pick the wrong enzyme, the message lists the enzymes that do cut your vector exactly twice.
 - Each sgRNA is checked for the enzyme's recognition site, on either strand and including sites created at the junctions. The enzyme would cut such a guide during cloning.
 
-**Supported enzymes:** *Bsm*BI, Esp3I, *Bsa*I and *Bbs*I. (*Bsa*I does not cut the bundled vectors exactly twice, so choose it only with a *Bsa*I vector of your own.)
+**Supported enzymes:** *Bsm*BI, Esp3I, *Bsa*I and *Bbs*I are listed first. Choose **Other…** to search every commercially available Type IIS enzyme in Biopython's restriction enzyme database that recognises a plain A/C/G/T site, cuts outside it, and leaves a 3 to 5 nt 5' overhang (for example SapI, BspQI, LguI, BtgZI, AarI or FokI). Enzymes sold under different names but with the same site, such as BpiI (*Bbs*I), Eco31I (*Bsa*I) and Esp3I (*Bsm*BI), are listed separately. Enzymes with 1 to 2 nt overhangs, blunt or two-sided cutters, and enzymes with degenerate sites are not offered.
+
+For an enzyme from the **Other…** list, the app only checks the cut geometry. Check yourself that the enzyme suits your vector (for example methylation sensitivity) and follow the supplier's protocol. For overhangs shorter than 3 nt the sgRNA orientation can't be auto-detected, and with 3-nt overhangs the scaffold check uses only the first three bases (`GTT`).
+
+(*Bsa*I does not cut the bundled vectors exactly twice, so choose it only with a *Bsa*I vector of your own.)
 
 
 ## A note on the extra G in the oligo sequences

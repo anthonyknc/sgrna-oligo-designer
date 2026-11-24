@@ -26,6 +26,7 @@ import csv
 import re
 from collections import Counter
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 
@@ -39,9 +40,16 @@ IDT_SCALE      = "25nm"
 IDT_PURIF      = "STD"
 IDT_COL_WIDTHS = {"A": 12.54, "B": 41.54, "C": 10.18, "D": 18.82}
 
-# Type IIS enzymes offered in the app. BsmBI and Esp3I are isoschizomers.
-# Cut geometry is taken from Bio.Restriction, so adding an enzyme here is enough.
+# The enzymes listed first in the app (BsmBI/Esp3I are isoschizomers). Any other eligible
+# enzyme can be chosen under "Other"; see all_enzymes(). Cut geometry always comes from
+# Bio.Restriction.
 ENZYMES = ("BsmBI", "Esp3I", "BsaI", "BbsI")
+
+# An enzyme is offered only if it is commercially available, recognises a plain ACGT site of
+# at least MIN_SITE bases, is non-palindromic, cuts outside its site with a single cut on
+# the downstream side, and leaves a 5' overhang of MIN_OVERHANG to MAX_OVERHANG bases
+# (1-2 nt overhangs ligate poorly and are not used for sgRNA cloning).
+MIN_SITE, MIN_OVERHANG, MAX_OVERHANG = 4, 3, 5
 
 # How the 5' G required by the human U6 promoter is added to the spacer:
 #   always    - always prepend G (standard Zhang-lab / Broad convention)
@@ -80,18 +88,36 @@ class Enzyme:
     overhang_len: int   # length of the 5' overhang
 
 
-def get_enzyme(name: str) -> Enzyme:
-    """Look up an enzyme from ``ENZYMES`` and return its cut geometry."""
-    if name not in ENZYMES:
-        raise ValueError(f"Unsupported enzyme '{name}'. Choose one of: {', '.join(ENZYMES)}.")
+def _from_biopython(enz) -> "Enzyme | None":
+    """Return the cut geometry of a Bio.Restriction enzyme, or None if it is not eligible."""
+    site = str(enz.site).upper()
+    if (not enz.suppl or set(site) - set("ACGT") or len(site) < MIN_SITE
+            or enz.is_palindromic() or not enz.is_5overhang()
+            or enz.fst5 is None or enz.fst5 < len(site)
+            or enz.scd5 is not None or enz.scd3 is not None
+            or not MIN_OVERHANG <= -enz.ovhg <= MAX_OVERHANG):
+        return None
+    return Enzyme(name=enz.__name__, site=site, cut_offset=enz.fst5, overhang_len=-enz.ovhg)
+
+
+@lru_cache(maxsize=1)
+def all_enzymes() -> dict[str, Enzyme]:
+    """Every eligible enzyme in Bio.Restriction's database, keyed by name and sorted."""
     from Bio import Restriction
 
-    enz  = getattr(Restriction, name)
-    site = str(enz.site).upper()
-    if (set(site) - set("ACGT") or enz.is_palindromic() or not enz.is_5overhang()
-            or enz.fst5 is None or enz.fst5 < len(site)):
-        raise ValueError(f"{name} is not a supported Type IIS enzyme.")
-    return Enzyme(name=name, site=site, cut_offset=enz.fst5, overhang_len=-enz.ovhg)
+    found = (_from_biopython(e) for e in Restriction.AllEnzymes)
+    return {e.name: e for e in sorted((e for e in found if e), key=lambda e: e.name.lower())}
+
+
+def get_enzyme(name: str) -> Enzyme:
+    """Look up an eligible enzyme by name (see :func:`all_enzymes`)."""
+    enzymes = all_enzymes()
+    if name not in enzymes:
+        raise ValueError(
+            f"Unsupported enzyme '{name}'. It must be a commercially available Type IIS enzyme with a "
+            f"plain recognition site that leaves a {MIN_OVERHANG}-{MAX_OVERHANG} nt 5' overhang."
+        )
+    return enzymes[name]
 
 
 def _find_sites(seq: str, enzyme: Enzyme) -> list[tuple[int, int]]:
@@ -158,10 +184,14 @@ def _locate(seq: str, enzyme: Enzyme) -> tuple[int, int]:
     n, k  = len(seq), enzyme.overhang_len
     hits  = _find_sites(seq, enzyme)
     if len(hits) != 2:
-        others = [e for e in ENZYMES if e != enzyme.name
-                  and len(_find_sites(seq, get_enzyme(e))) == 2]
-        hint = (f" This vector has exactly two sites for: {', '.join(others)}." if others
-                else f" None of the supported enzymes ({', '.join(ENZYMES)}) cuts it exactly twice.")
+        others = [name for name, e in all_enzymes().items()
+                  if name != enzyme.name and len(_find_sites(seq, e)) == 2]
+        # familiar enzymes first, then longest (most specific) site first: a shorter site that is
+        # contained in a longer one (e.g. EarI inside SapI) cuts there too but is rarely the intended enzyme
+        others.sort(key=lambda n: (n not in ENZYMES, -len(all_enzymes()[n].site), n.lower()))
+        shown = ", ".join(others[:10]) + (f" and {len(others) - 10} more" if len(others) > 10 else "")
+        hint = (f" This vector has exactly two sites for: {shown}." if others
+                else " None of the other supported enzymes cuts it exactly twice.")
         raise ValueError(
             f"{enzyme.name} (site {enzyme.site}) was found {len(hits)} time(s) in this vector, "
             f"but exactly 2 are needed, one on each side of the stuffer.{hint}"
@@ -186,8 +216,9 @@ def _locate(seq: str, enzyme: Enzyme) -> tuple[int, int]:
             f"sites and a {other_piece} bp piece that crosses the origin (position 1) of the map. "
             "The shorter piece is taken to be the stuffer, and a stuffer that crosses the origin is "
             "not supported. Move the origin elsewhere in your plasmid editor, re-export the "
-            "GenBank file, and try again. (If the stuffer is really the longer piece, this vector "
-            "cannot be handled yet.)"
+            "GenBank file, and try again. If that does not fit your vector, check that "
+            f"{enzyme.name} is the enzyme used to clone into it (it may just happen to cut twice "
+            "elsewhere), or that the stuffer is not the longer piece, which is not supported yet."
         )
     return x0, y0
 
@@ -222,6 +253,15 @@ def _site_from(seq: str, enzyme: Enzyme, x0: int, y0: int, orientation: str,
     )
 
 
+def _looks_like_scaffold_start(right_overhang: str) -> bool:
+    """
+    True if a right-hand overhang is the start of the Cas9 scaffold (GTTT...). Needs at
+    least 3 bases to be informative; longer overhangs are compared on their first 4 bases.
+    """
+    n = min(len(right_overhang), len(SCAFFOLD_START))
+    return len(right_overhang) >= 3 and right_overhang[:n] == SCAFFOLD_START[:n]
+
+
 def find_cloning_site(vector_record, enzyme_name: str, orientation: str = "auto") -> CloningSite:
     """
     Digest the vector in silico with ``enzyme_name`` and describe the cloning site.
@@ -231,7 +271,7 @@ def find_cloning_site(vector_record, enzyme_name: str, orientation: str = "auto"
     vector_record : Bio.SeqRecord.SeqRecord
         Circular vector.
     enzyme_name : str
-        One of :data:`ENZYMES`.
+        Any name from :func:`all_enzymes` (the common ones are in :data:`ENZYMES`).
     orientation : str
         'forward', 'reverse', or 'auto'. Auto-detection looks for the SpCas9
         scaffold start (GTTT) in the right-hand overhang on either strand and
@@ -268,14 +308,14 @@ def find_cloning_site(vector_record, enzyme_name: str, orientation: str = "auto"
         return reverse()
 
     fwd = forward()
-    if fwd.right_overhang == SCAFFOLD_START:
+    if _looks_like_scaffold_start(fwd.right_overhang):
         return fwd
     rev = reverse()
-    if rev.right_overhang == SCAFFOLD_START:
+    if _looks_like_scaffold_start(rev.right_overhang):
         return rev
     return forward((
-        f"Could not confirm the sgRNA orientation: expected the scaffold start {SCAFFOLD_START} "
-        f"in the right-hand overhang, found {fwd.right_overhang} (forward) / {rev.right_overhang} "
+        f"Could not confirm the sgRNA orientation: expected the scaffold start ({SCAFFOLD_START}) "
+        f"at the start of the right-hand overhang, found {fwd.right_overhang} (forward) / {rev.right_overhang} "
         "(reverse). Assuming forward; set the orientation under Advanced options if this is wrong.",
     ))
 

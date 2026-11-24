@@ -341,3 +341,69 @@ def test_read_vector_gb_gives_friendly_errors(tmp_path):
     junk.write_text("this is not a genbank file\n")
     with pytest.raises(ValueError, match="Could not read this file as a GenBank"):
         sod.read_vector_gb(junk)
+
+
+# --- any eligible enzyme ("Other…") ------------------------------------------------------
+
+def _filler_avoiding(n, seed, avoid):
+    rng = random.Random(seed)
+    while True:
+        s = "".join(rng.choice("ACGT") for _ in range(n))
+        if not any(p in s for p in avoid):
+            return s
+
+
+def _vector_for(name, layout):
+    """Synthetic vector for any eligible enzyme, with overhangs of that enzyme's length."""
+    enz = sod.get_enzyme(name)
+    k = enz.overhang_len
+    left, right = "CACCG"[:k], "GTTTA"[:k]
+    avoid = (enz.site, sod.reverse_complement(enz.site))
+    for seed in range(60):
+        rec, ctx = make_vector(
+            name, layout, left_ov=left, right_ov=right,
+            bb_l=_filler_avoiding(200, 3 * seed + 1, avoid), bb_r=_filler_avoiding(200, 3 * seed + 2, avoid),
+            mid=_filler_avoiding(30, 3 * seed + 3, avoid))
+        if len(sod._find_sites(str(rec.seq).upper(), enz)) == 2:
+            return rec, ctx, left, right
+    raise AssertionError(f"could not build a clean synthetic vector for {name}")
+
+
+@pytest.mark.parametrize("layout", ["A", "B"])
+@pytest.mark.parametrize("name", sorted(sod.all_enzymes()))
+def test_every_eligible_enzyme_round_trips(name, layout):
+    rec, (left_ctx, right_ctx), left, right = _vector_for(name, layout)
+    site = sod.find_cloning_site(rec, name)
+    assert (site.left_overhang, site.right_overhang, site.orientation) == (left, right, "forward")
+    rows = sod.add_cloning_oligos([{"sgRNA_id": "a", "sgRNA_seq": SG}], site)
+    (out,) = sod.build_plasmid_records(rows, rec, site)
+    assert str(out.seq) == left_ctx + "G" + SG + right_ctx
+    assert rows[0]["oligo_sense"] == left + "G" + SG
+    assert rows[0]["oligo_antisense"] == sod.reverse_complement("G" + SG + right)
+
+
+def test_eligible_list_contents():
+    names = set(sod.all_enzymes())
+    assert {"BsmBI", "Esp3I", "BsaI", "BbsI", "SapI", "BspQI", "LguI", "BpiI", "Eco31I"} <= names
+    assert sod.get_enzyme("SapI").overhang_len == 3
+    assert not names & {"EcoRI", "FspEI", "AlwI", "PleI", "BcgI", "BsaXI"}      # palindromic / 1-2 nt / two-sided
+    assert all(sod.MIN_OVERHANG <= e.overhang_len <= sod.MAX_OVERHANG for e in sod.all_enzymes().values())
+    for bad in ("EcoRI", "AlwI", "NotAnEnzyme"):
+        with pytest.raises(ValueError, match="Unsupported enzyme"):
+            sod.get_enzyme(bad)
+
+
+def test_three_nt_overhang_orientation_is_detected_both_ways():
+    fwd, _, _, _ = _vector_for("SapI", "A")
+    assert sod.find_cloning_site(fwd, "SapI").orientation == "forward"
+    assert sod.find_cloning_site(fwd, "SapI").right_overhang == "GTT"
+    rev = rc_record(fwd)
+    site = sod.find_cloning_site(rev, "SapI")
+    assert (site.orientation, site.left_overhang, site.right_overhang) == ("reverse", "CAC", "GTT")
+
+
+def test_wrong_enzyme_hint_lists_other_enzymes_that_do_cut_twice():
+    rec, _, _, _ = _vector_for("SapI", "A")
+    with pytest.raises(ValueError) as e:
+        sod.find_cloning_site(rec, "BsmBI")
+    assert "SapI" in str(e.value) and "exactly two sites for" in str(e.value)

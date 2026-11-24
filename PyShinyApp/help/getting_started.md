@@ -25,7 +25,7 @@ Additional columns (e.g. target gene, genomic coordinates, on-target score) are 
 
 See [`example_inputs/sgRNA_seqs/`](https://github.com/anthonyknc/sgrna-oligo-designer/tree/main/example_inputs/sgRNA_seqs) for ready-to-use example files in all three formats.
 
-> **Note:** The tool designs oligos for ***Sp*Cas9** sgRNAs cloned by Type IIS restriction-enzyme digestion (*Bsm*BI, Esp3I, *Bsa*I or *Bbs*I). You never type overhangs: they are read from the vector, as explained under **How it works**.
+> **Note:** The tool designs oligos for ***Sp*Cas9** sgRNAs cloned by Type IIS restriction-enzyme digestion (*Bsm*BI, Esp3I, *Bsa*I, *Bbs*I, or another Type IIS enzyme of your choice). You never type overhangs: they are read from the vector, as explained under **How it works**.
 
 > **Tip:** The app automatically removes leading, trailing, and internal whitespace from sgRNA sequences and converts them to uppercase. Sequences copied from publications (which may include spaces every 10 bases) or pasted from PDFs are handled correctly.
 
@@ -55,7 +55,7 @@ for individual gene perturbations and CRISPR library screens (CRISPRko/i/a/tilin
 |---|---|
 | Upload sgRNA table | `.xlsx`, `.csv` or `.tsv` with the sgRNA IDs and sequences |
 | Vector | A bundled vector, or upload your own circular GenBank file (`.gb` / `.gbk`) |
-| Restriction enzyme | *Bsm*BI, Esp3I, *Bsa*I or *Bbs*I; sets the cuts, overhangs and stuffer |
+| Restriction enzyme | *Bsm*BI, Esp3I, *Bsa*I or *Bbs*I, or **Other…** to search all eligible enzymes; sets the cuts, overhangs and stuffer |
 | Vector name | Prepended to each plasmid name and LOCUS name. Default: the vector name or uploaded file name |
 | Combined .gb filename stem | Name of the downloaded GenBank file. Default: `combined_plasmids` |
 | Advanced options | Column names; whether to add the 5' G (always / only if the sgRNA doesn't start with G / never); sgRNA orientation |
