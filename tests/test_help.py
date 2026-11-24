@@ -61,3 +61,25 @@ def test_guide_states_the_main_points_correctly():
     assert "strongly prefers" in how and "requires a" not in how          # 5' G wording
     assert "Do the oligos need to be phosphorylated?" in how               # PNK note
     assert "No. The oligos are ordered without a 5' phosphate" in how
+
+
+def test_every_input_the_server_reads_exists_in_the_ui():
+    """Catches typos in input ids: server code reading an input the UI never creates."""
+    import re
+    import app
+    source = (ROOT / "PyShinyApp" / "app.py").read_text()
+    used = set(re.findall(r"\binput\.(\w+)\(", source))
+    html = str(app.app_ui)
+    missing = sorted(i for i in used if f'id="{i}"' not in html and f"id='{i}'" not in html)
+    assert not missing, missing
+
+
+def test_every_output_and_download_the_server_defines_is_placed_in_the_ui():
+    import re
+    import app
+    source = (ROOT / "PyShinyApp" / "app.py").read_text()
+    names = re.findall(r"@render\.(?:ui|data_frame|text|plot|table)\s*\n\s*def (\w+)\(", source)
+    names += re.findall(r"@render\.download\([^\n]*\)\s*\n\s*def (\w+)\(", source)
+    html = str(app.app_ui) + source           # results_ui / buttons place some of them dynamically
+    missing = sorted(n for n in names if f'"{n}"' not in html)
+    assert not missing, missing

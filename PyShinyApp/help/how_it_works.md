@@ -11,7 +11,7 @@ Instead of asking you for overhang sequences, the app digests your vector in sil
 
 For ipUSEPR with *Bsm*BI the overhangs come out as `CACC` and `GTTT`, which reproduces the familiar `CACCG-sgRNA` / `AAAC-rc(sgRNA)-C` oligos.
 
-Both common vector layouts work: recognition sites inside the stuffer, lost on cutting (lentiCRISPR, ipUSEPR), and sites that stay in the backbone. The sgRNA orientation (which strand of the GenBank file is transcribed) is auto-detected from the Cas9 scaffold start (`GTTT`), and you can override it under **⚙ Advanced options**.
+Both common vector layouts work: recognition sites inside the stuffer, lost on cutting (lentiCRISPR, ipUSEPR), and sites that stay in the backbone. The sgRNA orientation (which strand of the GenBank file is transcribed) is auto-detected from the Cas9 scaffold start (`GTTT`), and you can override it under **Advanced options**.
 
 The app checks the following and tells you if one fails:
 - The vector must be circular and have **exactly two** sites for the chosen enzyme. If you pick the wrong enzyme, the message lists the enzymes that do cut your vector exactly twice.

@@ -15,7 +15,7 @@ re-export the GenBank file, and try again.
 **"Could not confirm the sgRNA orientation"**
 The right-hand overhang is not the start of the Cas9 scaffold (`GTTT`) on either strand, so
 the app assumed the sgRNA reads forward. Check the overhangs shown under **Cloning site**
-and set the orientation under **⚙ Advanced options** if needed.
+and set the orientation under **Advanced options** if needed.
 
 **"sgRNA ... contains a BsmBI recognition site"**
 The enzyme would cut inside this guide during cloning, so it will likely fail. Choose a
@@ -26,7 +26,7 @@ Two or more rows in your input file share the same `sgRNA_id`. Every sgRNA must
 have a unique identifier.
 
 **"Column 'sgRNA_seq' not found"**
-Your input file uses different column names. Open **⚙ Advanced options** and
+Your input file uses different column names. Open **Advanced options** and
 enter your column names for the sgRNA sequences and IDs.
 
 **"sgRNA contains non-ACGT characters"**

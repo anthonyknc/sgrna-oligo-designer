@@ -17,6 +17,7 @@ from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
 
 from report import (
+    TABLE_COLUMNS,
     bundle_zip,
     design_template,
     genbank_zip,
@@ -158,19 +159,20 @@ def _guide(name: str):
 # toggles; its 'focus' trigger would break in Safari, which doesn't focus buttons on click.)
 _INFO_JS = """
 (function () {
-  function closeOpen(except) {
+  function closeOpen(except, refocus) {
     document.querySelectorAll('.popover.show').forEach(function (pop) {
       var trigger = document.querySelector('[aria-describedby="' + pop.id + '"]');
       if (!trigger || trigger === except) return;
       var inst = window.bootstrap && bootstrap.Popover.getInstance(trigger);
       if (inst) inst.hide();
+      if (refocus) trigger.focus();
     });
   }
   document.addEventListener('click', function (e) {
     if (e.target.closest('.popover')) return;
     closeOpen(e.target.closest('.info-btn'));
   });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeOpen(null); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeOpen(null, true); });
 })();
 """
 
@@ -221,11 +223,10 @@ body { font-feature-settings: "cv11", "ss01"; }
 .bslib-value-box { min-height: 0 !important; }
 .bslib-value-box .value-box-showcase svg { width: 2rem; height: 2rem; }
 .bslib-value-box .value-box-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; opacity: .9; }
-.bslib-value-box .value-box-value { font-size: 1.7rem; }
+.bslib-value-box .value-box-value { font-size: 1.7rem; font-weight: 700; }
 .empty-state h5 { color: var(--bs-body-color); }
 .empty-state ol { display: inline-block; text-align: left; margin-top: .4rem; }
-.bslib-value-box .value-box-value { font-weight: 700; }
-.info-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem;
+.info-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem;
             margin-left: 0.4rem; padding: 0; border: 1px solid var(--bs-secondary-color); border-radius: 50%;
             background: transparent; color: var(--bs-secondary-color); font-size: 0.7rem; font-weight: 700;
             line-height: 1; cursor: pointer; vertical-align: middle; }
@@ -441,6 +442,15 @@ def _alert(kind: str, *children):
     return ui.div(*children, class_=f"alert alert-{kind}", role="alert")
 
 
+def _error_alert(e: Exception):
+    """Our own ValueErrors are written for the user; anything else gets a generic wrapper."""
+    if isinstance(e, ValueError):
+        return _alert("danger", _fa("circle-xmark"), str(e))
+    return _alert("danger", _fa("circle-xmark"),
+                  f"Something unexpected went wrong ({type(e).__name__}: {e}). Please check your files, "
+                  "and report the problem on GitHub if it persists.")
+
+
 def server(input, output, session):
 
     # Example mode flag
@@ -450,11 +460,6 @@ def server(input, output, session):
     @reactive.event(input.example_btn)
     def _set_example():
         _use_example.set(True)
-
-    @reactive.effect
-    @reactive.event(input.run_btn)
-    def _clear_example():
-        _use_example.set(False)
 
     # --- Stale results: any setting change after a run invalidates the shown results ---
 
@@ -516,6 +521,20 @@ def server(input, output, session):
         a, b = input.enzyme_a(), input.enzyme_b()
         return (a, b) if a and b else None
 
+    def _missing_setup() -> str | None:
+        """What is missing from the vector/enzyme settings, in plain words."""
+        if input.vector_choice() == _UPLOAD and not input.vector_file():
+            return "Upload a vector GenBank file, or choose one of the built-in vectors."
+        if input.enzyme_mode() == "two" and _two_enzymes() is None:
+            return "Choose the two enzymes."
+        return None
+
+    def _missing_input() -> str | None:
+        """What the user still has to provide before oligos can be designed."""
+        if not _use_example() and not input.sgrna_file():
+            return "Upload an sgRNA table, or click Load example sgRNAs."
+        return _missing_setup()
+
     @reactive.effect
     def _offer_single_cutters():
         """In two-enzyme mode, offer only the enzymes that cut this vector exactly once."""
@@ -566,11 +585,10 @@ def server(input, output, session):
         try:
             site = cloning_site()
         except SilentException:
-            return ui.p("Choose the two enzymes to see the cloning site.", class_="hint mb-0")
+            return ui.p((_missing_setup() or "Choose a vector and enzymes to see the cloning site."),
+                        class_="hint mb-0")
         except Exception as e:
-            if input.vector_choice() == _UPLOAD and not input.vector_file():
-                return ui.p("Upload a vector GenBank file to see its cloning site.", class_="hint mb-0")
-            return _alert("danger", _fa("circle-xmark"), str(e))
+            return _error_alert(e)
 
         chips = [
             _chip("Enzyme" + ("s" if site.enzyme_b else ""), site.enzymes),
@@ -657,13 +675,11 @@ def server(input, output, session):
                 type="warning" if warns else "message", duration=4,
             )
         except SilentException:
-            ui.notification_show(
-                "Upload an sgRNA table (or click Load example sgRNAs), and a vector file if you chose "
-                "'Upload my own', then click Design oligos.",
-                type="warning", duration=6,
-            )
+            ui.notification_show(_missing_input() or "Something is missing from the inputs.",
+                                 type="warning", duration=6)
         except Exception as e:
-            ui.notification_show(str(e), type="error", duration=8)
+            ui.notification_show(str(e) if isinstance(e, ValueError) else f"Unexpected error: {e}",
+                                 type="error", duration=8)
 
     # --- Results ---
 
@@ -675,22 +691,27 @@ def server(input, output, session):
             rows = processed_rows()
             warns = _all_warnings()
         except SilentException:
-            return _empty_state()
+            if not _ran():
+                return _empty_state()
+            return _alert("warning", _fa("triangle-exclamation"),
+                          _missing_input() or "Something is missing from the inputs.")
         except Exception as e:
-            return _alert("danger", _fa("circle-xmark"), str(e))
+            return _error_alert(e)
 
         n = len(rows)
+        if n == 0:
+            return _alert("warning", _fa("triangle-exclamation"), "The table contains no sgRNAs.")
         boxes = ui.layout_columns(
             ui.value_box("sgRNAs", f"{n}", showcase=icon_svg("dna", margin_left="0", margin_right="0"),
                          theme="primary", height="105px"),
             ui.value_box("Oligos to order", f"{2 * n}",
                          showcase=icon_svg("vial", margin_left="0", margin_right="0"), theme="primary",
                          height="105px"),
-            ui.value_box("Warnings", f"{len(warns)}" if warns else "None",
+            ui.value_box("Warnings", f"{len(warns)}",
                          showcase=icon_svg("triangle-exclamation" if warns else "circle-check",
                                            margin_left="0", margin_right="0"),
                          theme="warning" if warns else "success", height="105px"),
-            col_widths=(4, 4, 4), fill=False,
+            col_widths={"xs": 12, "md": 4}, fill=False,
         )
         warn_alert = _alert(
             "warning", ui.tags.strong(f"{len(warns)} warning(s)"),
@@ -722,7 +743,8 @@ def server(input, output, session):
     def results_grid():
         req(not _stale())
         rows = processed_rows()
-        df = pd.DataFrame(oligo_table(rows, id_col=input.id_col(), seq_col=input.seq_col()))
+        df = pd.DataFrame(oligo_table(rows, id_col=input.id_col(), seq_col=input.seq_col()),
+                          columns=TABLE_COLUMNS)
         df = df.drop(columns=["Spacer (5'→3')"]).rename(columns={"sgRNA": "ID"})
         flagged = [i for i, r in enumerate(rows) if r["warnings"]]
         styles = [{"cols": [1, 2], "style": {"font-family": "ui-monospace, Menlo, monospace", "font-size": "0.84rem"}}]

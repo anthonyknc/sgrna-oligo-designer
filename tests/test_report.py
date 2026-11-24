@@ -74,3 +74,44 @@ def test_bundle_zip_contents(ipusepr, tmp_path):
     assert set(z.namelist()) == {"IDT_orderForm.xlsx", "oligos.csv", "all_plasmids.gb",
                                  "plasmids/ipUSEPR_a.gb", "plasmids/ipUSEPR_b.gb"}
     assert z.read("IDT_orderForm.xlsx")[:2] == b"PK"           # a real xlsx (zip) file
+
+
+def test_gc_column_is_the_spacer_gc_not_the_oligo_gc(ipusepr):
+    _, _, rows, _ = ipusepr
+    t = report.oligo_table(rows)
+    assert "Spacer GC %" in t[0] and "GC %" not in t[0]
+    assert t[0]["Spacer GC %"] == report.gc_percent(SG)
+    assert t[0]["Spacer GC %"] != report.gc_percent(t[0]["Sense oligo (5'→3')"])
+
+
+def test_empty_table_has_all_columns_and_header_only_csv():
+    import csv
+    import pandas as pd
+    df = pd.DataFrame(report.oligo_table([]), columns=report.TABLE_COLUMNS)
+    assert list(df.columns) == report.TABLE_COLUMNS and len(df) == 0
+    got = list(csv.reader(io.StringIO(report.oligos_csv([]).decode())))
+    assert got == [["sgRNA", "spacer", "sense_oligo", "antisense_oligo", "spacer_gc_percent", "notes"]]
+
+
+def test_notes_keep_site_level_warnings_unchanged():
+    row = {"sgRNA_id": "a", "sgRNA_seq": SG, "oligo_sense": "X", "oligo_antisense": "Y",
+           "warnings": ["Something about the vector", "sgRNA 'a' is 21 nt"]}
+    assert report.oligo_table([row])[0]["Notes"] == "Something about the vector; is 21 nt"
+
+
+def test_split_spacer_without_a_spacer_run():
+    assert report.split_spacer("ACGT") == ("ACGT", "", "")
+
+
+def test_bundle_zip_combined_genbank_matches_the_golden_file(ipusepr, tmp_path):
+    """The in-memory GenBank path must give exactly what the golden (file-written) output has."""
+    vec = sod.read_vector_gb(ROOT / "PyShinyApp" / "vectors" / "ipUSEPR.gb")
+    site = sod.find_cloning_site(vec, "BsmBI")
+    rows = sod.add_cloning_oligos(sod.read_input(ROOT / "example_inputs" / "sgRNA_seqs" / "example_sgRNA_seqs.xlsx"), site)
+    records = sod.build_plasmid_records(rows, vec, site)
+    z = zipfile.ZipFile(io.BytesIO(report.bundle_zip(
+        sod.build_idt_rows(rows), rows, records, "ipUSEPR", "ipUSEPR_plasmids_combined", tmp_path / "o.xlsx")))
+    golden = (ROOT / "example_outputs" / "plasmids" / "ipUSEPR_plasmids_combined.gb").read_text()
+    assert z.read("ipUSEPR_plasmids_combined.gb").decode() == golden
+    one = (ROOT / "example_outputs" / "plasmids" / "ipUSEPR_sg_Luc_474.gb").read_text()
+    assert z.read("plasmids/ipUSEPR_sg_Luc_474.gb").decode() == one

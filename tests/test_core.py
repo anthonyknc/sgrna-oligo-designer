@@ -61,7 +61,7 @@ def test_validate_ids_accepts_normal_ids_and_strips_surrounding_whitespace():
     assert rows[0]["sgRNA_id"] == "sg_Luc-474.v2"
 
 
-@pytest.mark.parametrize("bad", ["my guide", "=HYPERLINK(1)", "+cmd", "a/b", "a;b", "", "  ", "sg\u00e9"])
+@pytest.mark.parametrize("bad", ["my guide", "=HYPERLINK(1)", "+cmd", "-1", ".hidden", "a/b", "a;b", "", "  ", "sg\u00e9"])
 def test_validate_ids_rejects_unsafe_ids(bad):
     with pytest.raises(ValueError, match="Invalid sgRNA ID"):
         sod.validate_ids([{"sgRNA_id": "ok"}, {"sgRNA_id": bad}])
@@ -70,6 +70,8 @@ def test_validate_ids_rejects_unsafe_ids(bad):
 def test_validate_ids_duplicates_and_missing_column():
     with pytest.raises(ValueError, match="Duplicate sgRNA IDs"):
         sod.validate_ids([{"sgRNA_id": "a"}, {"sgRNA_id": "a"}])
+    with pytest.raises(ValueError, match="ignoring upper/lower case"):         # SG1 / sg1 collide as files
+        sod.validate_ids([{"sgRNA_id": "SG1"}, {"sgRNA_id": "sg1"}])
     with pytest.raises(ValueError, match="not found"):
         sod.validate_ids([{"x": "a"}])
 

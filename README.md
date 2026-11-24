@@ -4,7 +4,7 @@ A web app for designing sgRNA cloning oligos for CRISPR experiments.
 Given a list of sgRNA sequences, it generates:
 
 1. **An IDT bulk order form** (`.xlsx`) — ready to upload directly to [IDT](https://www.idtdna.com) for oligo synthesis
-2. **Annotated plasmid maps** (`.gb`) — one GenBank record per sgRNA construct, in a single combined file, ready to open in [SnapGene](https://www.snapgene.com) or [Benchling](https://www.benchling.com) for sequencing verification
+2. **Annotated plasmid maps** (`.gb`) — one GenBank record per sgRNA construct (as one combined file, or one file per sgRNA), ready to open in [SnapGene](https://www.snapgene.com) or [Benchling](https://www.benchling.com) for sequencing verification
 
 You choose a vector and a Type IIS restriction enzyme (*Bsm*BI/Esp3I, *Bbs*I/BpiI, *Bsa*I and SapI are listed first; any other commercially available Type IIS enzyme can be chosen under **Other…**, and vectors cut by two different enzymes, such as BstXI + BlpI, are supported too). The app cuts the
 vector in silico and reads the overhangs and the stuffer from it, so there is nothing to type in by hand.

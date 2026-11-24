@@ -24,6 +24,9 @@ from sgrna_oligo_designer import (
 
 SPACER_LEN = 20
 
+TABLE_COLUMNS = ["sgRNA", "Spacer (5'→3')", "Sense oligo (5'→3')", "Antisense oligo (5'→3')",
+                 "Length (nt)", "Spacer GC %", "Notes"]
+
 
 def gc_percent(seq: str) -> float:
     """GC content of a DNA sequence in percent (0 for an empty sequence)."""
@@ -40,7 +43,7 @@ def oligo_table(rows: list[dict], id_col: str = "sgRNA_id", seq_col: str = "sgRN
             "Sense oligo (5'→3')": r["oligo_sense"],
             "Antisense oligo (5'→3')": r["oligo_antisense"],
             "Length (nt)": f"{len(r['oligo_sense'])} / {len(r['oligo_antisense'])}",
-            "GC %": gc_percent(r["oligo_sense"]),
+            "Spacer GC %": gc_percent(r[seq_col]),
             "Notes": "; ".join(w.split("' ", 1)[-1] if w.startswith("sgRNA '") else w
                                for w in r["warnings"]) or "OK",
         })
@@ -65,10 +68,10 @@ def split_spacer(template: str) -> tuple[str, str, str]:
 def oligos_csv(rows: list[dict], id_col: str = "sgRNA_id", seq_col: str = "sgRNA_seq") -> bytes:
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["sgRNA", "spacer", "sense_oligo", "antisense_oligo", "gc_percent", "notes"])
+    writer.writerow(["sgRNA", "spacer", "sense_oligo", "antisense_oligo", "spacer_gc_percent", "notes"])
     for r in oligo_table(rows, id_col, seq_col):
         writer.writerow([r["sgRNA"], r["Spacer (5'→3')"], r["Sense oligo (5'→3')"],
-                         r["Antisense oligo (5'→3')"], r["GC %"], r["Notes"]])
+                         r["Antisense oligo (5'→3')"], r["Spacer GC %"], r["Notes"]])
     return buf.getvalue().encode()
 
 

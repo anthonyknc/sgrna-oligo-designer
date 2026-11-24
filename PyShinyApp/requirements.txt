@@ -28,8 +28,6 @@ htmltools==0.7.0
     #   shinyswatch
 idna==3.20
     # via anyio
-jinja2==3.1.6
-    # via sgrna-oligo-designer
 libsass==0.23.0
     # via shinychat
 linkify-it-py==2.2.0
@@ -38,8 +36,6 @@ markdown-it-py==4.3.0
     # via
     #   mdit-py-plugins
     #   shiny
-markupsafe==3.0.4
-    # via jinja2
 mdit-py-plugins==0.7.0
     # via shiny
 mdurl==0.1.2

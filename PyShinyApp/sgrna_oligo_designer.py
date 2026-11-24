@@ -693,7 +693,7 @@ def add_cloning_oligos(
     return rows
 
 
-_NAME_OK  = re.compile(r"[A-Za-z0-9_.\-]+")
+_NAME_OK  = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.\-]*")      # no leading - or . (spreadsheet formulas, hidden files)
 _NAME_BAD = re.compile(r"[^A-Za-z0-9_.\-]+")
 
 
@@ -725,13 +725,16 @@ def validate_ids(rows: list[dict], id_col: str = "sgRNA_id") -> None:
     if bad:
         raise ValueError(
             f"Invalid sgRNA ID(s): {bad[:5]}{' ...' if len(bad) > 5 else ''}. IDs may contain only "
-            "letters, digits, underscores (_), hyphens (-) and dots (.), with no spaces. "
-            "Rename them in your table, for example by replacing spaces with underscores."
+            "letters, digits, underscores (_), hyphens (-) and dots (.), must start with a letter, digit "
+            "or underscore, and cannot contain spaces. Rename them in your table, for example by "
+            "replacing spaces with underscores."
         )
-    duplicates = [i for i, n in Counter(r[id_col] for r in rows).items() if n > 1]
+    # Case-insensitive: SG1 and sg1 would give files that overwrite each other on macOS and Windows.
+    counts = Counter(r[id_col].lower() for r in rows)
+    duplicates = sorted({r[id_col] for r in rows if counts[r[id_col].lower()] > 1})
     if duplicates:
         raise ValueError(
-            f"Duplicate sgRNA IDs found: {duplicates}. "
+            f"Duplicate sgRNA IDs found: {duplicates} (IDs are compared ignoring upper/lower case). "
             "Each sgRNA must have a unique identifier."
         )
 

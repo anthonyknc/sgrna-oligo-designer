@@ -14,7 +14,7 @@ Type IIS (restriction-enzyme) cloning of SpCas9 sgRNAs into lentiviral vectors. 
   built-in `input_dark_mode`), `report.py` (tested presentation helpers: result table, oligo design
   template, zip/CSV bundles; no Shiny code), `sgrna_oligo_designer.py` (core logic, no CLI), `help/*.md` (SOURCE OF TRUTH for the
   Guide tab; the README links to these files, keep their links absolute), `vectors/` (the three bundled
-  vectors, offered as presets), `example_inputs/` (table for the "Load example data" button),
+  vectors, offered as presets), `example_inputs/` (table for the "Load example sgRNAs" button),
   and `requirements.txt` (GENERATED, don't hand-edit).
 - `example_inputs/sgRNA_seqs/` and `example_outputs/` at the root are the reference data the tests use.
 - `tests/`: `test_golden.py` (example vectors vs `example_outputs/`), `test_cloning.py` (synthetic
@@ -74,6 +74,9 @@ Things that span functions and are easy to miss:
   `write_idt_excel` also forces string cells. Keep any new user-controlled name on this path.
 - The app's `cloning_site` calc is live (updates on vector/enzyme change and shows errors inline);
   results calcs fire only on Design oligos/example clicks and are hidden as stale when a setting changes.
+  `_use_example` is changed only by the example button (on) and by uploading a table (off); clicking
+  Design oligos must NOT reset it, or changing a setting after the example wipes the results.
+  Missing inputs are reported by `_missing_input()` / `_missing_setup()`, never by a generic message.
 - Golden tests compare GenBank output byte-for-byte (including the LOCUS line), so any change to
   record naming, feature order or qualifiers shows up as a golden diff. The `source` feature in the
   goldens spans the whole new plasmid (an intentional correction of the old stuffer-based output).
