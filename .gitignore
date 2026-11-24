@@ -20,3 +20,5 @@ build/
 PyShinyApp/venv/
 PyShinyApp/__pycache__/
 PyShinyApp/rsconnect-python/
+# Tests
+.pytest_cache/
