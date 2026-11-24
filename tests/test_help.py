@@ -44,3 +44,13 @@ def test_app_renders_every_guide_page():
     import app
     for n in NAMES:
         assert "<h" in str(app._guide(n))
+
+
+def test_app_version_matches_pyproject_and_last_update_is_a_date():
+    import datetime
+    import tomllib
+
+    import app
+    version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+    assert app._VERSION == f"v{version}"
+    datetime.date.fromisoformat(app._LAST_UPDATE)      # raises unless YYYY-MM-DD

@@ -21,6 +21,11 @@ Golden Gate cloning of SpCas9 sgRNAs into lentiviral vectors. Audience: wet-lab 
 - uv project: `pyproject.toml` + `uv.lock`, Python 3.12 (`.python-version`, pinned
   `>=3.12,<3.13` until a test deploy says otherwise).
 
+## Releasing
+
+On each release bump `_VERSION` and `_LAST_UPDATE` in `PyShinyApp/app.py` and `version` in
+`pyproject.toml` (a test checks that the first and last agree), then `uv lock`.
+
 ## Commands
 
 ```bash

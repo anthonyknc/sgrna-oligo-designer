@@ -1,5 +1,5 @@
 """
-app.py  —  sgRNA Oligo Designer v1.0.0
+app.py  —  sgRNA Oligo Designer v2.0.0
 ---------------------------------------
 Core shiny mode. Run: shiny run app.py --reload
 Deploy:        rsconnect deploy shiny . --name <account> --title sgrna-oligo-designer
@@ -32,7 +32,8 @@ from sgrna_oligo_designer import (
 # Constants
 # ---------------------------------------------------------------------------
 
-_VERSION      = "v1.0.0"
+_VERSION      = "v2.0.0"
+_LAST_UPDATE  = "2026-11-23"   # YYYY-MM-DD; bump together with _VERSION on each release
 _GITHUB_URL   = "https://github.com/anthonyknc/sgrna-oligo-designer"
 _HERE         = Path(__file__).parent
 _EXAMPLE_XLSX = _HERE / "example_inputs" / "example_sgRNA_seqs.xlsx"
@@ -427,6 +428,10 @@ app_ui = sui.page_sidebar(
             sui.tags.a("GitHub", href=_GITHUB_URL, target="_blank"),
             " · MIT License",
             style="text-align:center; color:#6c757d; font-size:0.8em; margin:0;",
+        ),
+        sui.tags.p(
+            f"Last Update: {_LAST_UPDATE}",
+            style="text-align:center; color:#6c757d; font-size:0.8em; margin:0.25rem 0 0;",
         ),
         style="margin-top:2rem; padding-bottom:1rem;",
     ),
