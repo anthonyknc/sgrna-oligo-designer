@@ -46,3 +46,11 @@ A sequence longer than 20 nt ends in NGG, which strongly suggests the PAM
 sequence was accidentally included. Trim the sequence to 20 nt by removing
 the trailing NGG before re-running.
 
+**"X cuts this vector N time(s), but each of the two enzymes must cut it exactly once"**
+In two-enzyme mode both enzymes must cut your vector once. Pick enzymes from the lists, which already contain only those that do.
+
+**"The Cas9 scaffold start was not found between the cuts"**
+In two-enzyme mode the app could not work out the constant bases around the spacer. Type them under **Advanced options** as given in your vector's oligo design instructions (for BstXI/BlpI vectors, usually `TTG` and `GTTTAAGAGC`).
+
+**"Both overhangs are identical"** / **"An overhang is palindromic"**
+The two ends of the cut vector can ligate to each other or to the insert in either direction (for example BamHI and BglII leave the same GATC overhang). Check the vector and the enzymes.

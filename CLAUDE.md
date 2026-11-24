@@ -90,7 +90,8 @@ Things that span functions and are easy to miss:
 - **Enzyme-based design (DONE; replaced the manual overhang flags and the stuffer input).** User picks vector + enzyme; the tool
   finds the flanking sites, simulates the cut, derives the 4-nt overhangs, and builds oligos and
   the plasmid from the real cut ends. The stuffer is inferred (fragment between cuts), not typed.
-  - Enzymes: BsmBI, Esp3I, BsaI, BbsI are listed first (`ENZYMES`); "Other…" offers every eligible
+  - Enzymes: BsmBI/Esp3I, BbsI/BpiI, BsaI, SapI are listed first (`ENZYMES`, picked from Addgene CRISPR
+    plasmid text searches in Nov 2026; counts were BbsI > BsaI > BsmBI by keyword, not a usage measure); "Other…" offers every eligible
     Bio.Restriction enzyme (`all_enzymes()`: commercial, plain ACGT site >= 4 nt, non-palindromic,
     single downstream cut, 3-5 nt 5' overhang; ~40 enzymes incl. 3-nt SapI/BspQI/LguI).
   - Support **both** layouts: recognition sites inside the stuffer (lost on cutting, e.g.
@@ -108,6 +109,20 @@ Things that span functions and are easy to miss:
    deploy (needs the user's credentials; do not run it unprompted).
 4. DONE: enzyme-based redesign. Only BsmBI vectors exist in the repo; BsaI/BbsI/Esp3I are covered by
    synthetic-vector tests, not by a real vector. Worth testing with a real BsaI vector if one turns up.
+
+## Two-enzyme mode
+
+`find_cloning_site(vec, A, enzyme_b=B, left_extra=, right_extra=)`. Cut positions come from
+`Bio.Restriction` (`_cuts`: top/bottom cut per site, 5' or 3' overhang, degenerate sites ok), not
+from the Type IIS arithmetic used in one-enzyme mode. `CloningSite` carries per-end trims so
+`design_oligos` builds each oligo as its strand of `left_overhang + left_extra + core + right_extra
++ right_overhang` minus what the vector end already supplies. The cuts do not locate the spacer slot,
+so the flanking bases (`left_extra`/`right_extra`) are suggested from the scaffold start (assumes a
+20-nt placeholder) and user-overridable. The spacer-site warning ignores sites that touch the spacer by
+one base only (vectors regenerate their own site, e.g. BstXI's last G is the guide's first G).
+Tested on a real vector (`tests/fixtures/pMCB306.gb`, Addgene 89360) plus synthetic vectors for many
+pairs, using an independent check: cloning the original stuffer back must reproduce the digest strands.
+Not supported yet: shRNA hairpin inserts (pLKO.1, AgeI+EcoRI), stuffers longer than the backbone.
 
 ## Known issues
 

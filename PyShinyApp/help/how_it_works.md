@@ -17,7 +17,7 @@ The app checks the following and tells you if one fails:
 - The vector must be circular and have **exactly two** sites for the chosen enzyme. If you pick the wrong enzyme, the message lists the enzymes that do cut your vector exactly twice.
 - Each sgRNA is checked for the enzyme's recognition site, on either strand and including sites created at the junctions. The enzyme would cut such a guide during cloning.
 
-**Supported enzymes:** *Bsm*BI, Esp3I, *Bsa*I and *Bbs*I are listed first. Choose **Other…** to search every commercially available Type IIS enzyme in Biopython's restriction enzyme database that recognises a plain A/C/G/T site, cuts outside it, and leaves a 3 to 5 nt 5' overhang (for example SapI, BspQI, LguI, BtgZI, AarI or FokI). Enzymes sold under different names but with the same site, such as BpiI (*Bbs*I), Eco31I (*Bsa*I) and Esp3I (*Bsm*BI), are listed separately. Enzymes with 1 to 2 nt overhangs, blunt or two-sided cutters, and enzymes with degenerate sites are not offered.
+**Supported enzymes:** *Bsm*BI/Esp3I, *Bbs*I/BpiI, *Bsa*I and SapI are listed first (BsmBI and Esp3I, and BbsI and BpiI, are the same enzyme under different names). Choose **Other…** to search every commercially available Type IIS enzyme in Biopython's restriction enzyme database that recognises a plain A/C/G/T site, cuts outside it, and leaves a 3 to 5 nt 5' overhang (for example BspQI, LguI, BtgZI, AarI or FokI). Enzymes with 1 to 2 nt overhangs, blunt or two-sided cutters, and enzymes with degenerate sites are not offered in this mode.
 
 For an enzyme from the **Other…** list, the app only checks the cut geometry. Check yourself that the enzyme suits your vector (for example methylation sensitivity) and follow the supplier's protocol. For overhangs shorter than 3 nt the sgRNA orientation can't be auto-detected, and with 3-nt overhangs the scaffold check uses only the first three bases (`GTT`).
 
@@ -82,6 +82,16 @@ The construct name in each LOCUS line (e.g. `ipUSEPR_sg_Luc_474`) is
 `<vector name>_<sgRNA ID>`, so SnapGene and Benchling display the correct
 construct name when the file is imported.
 
+
+## Vectors cut by two different enzymes
+
+Some sgRNA vectors are cut by two different enzymes rather than one enzyme at two sites. A common example is BstXI + BlpI (the pMCB306 / pMCB320 / CROP-seq family); another is AgeI + EcoRI (the pLKO.1 shRNA family). Choose **Two different enzymes** under Cloning enzymes and pick both enzymes. The lists contain only the enzymes that cut your vector **exactly once**, and the order does not matter.
+
+Any commercially available enzyme can be used here, including palindromic and degenerate sites and enzymes that leave a 3' overhang (BstXI leaves a 4-nt 3' overhang, BlpI a 3-nt 5' overhang). The app records, for each cut, which strand is cut where, and builds each oligo as the part of the insert that the vector ends do not already supply. Cloning the vector's own original guide back in therefore restores the original plasmid.
+
+**Constant bases around the spacer.** With two enzymes the cuts do not say where the spacer goes, because the vector keeps some constant bases inside the removed piece (for pMCB306: `TTG` before the spacer and `GTTTAAGAGC` after it, the start of the scaffold). The app works these out by finding the Cas9 scaffold start in the removed piece and assuming a 20-nt spacer slot, and shows them under **Cloning site**. Under **Advanced options** you can type your own values (copy them from your vector's oligo design instructions); a blank box means "use the automatic ones". If the scaffold is not found, enter them yourself.
+
+Two-enzyme mode has only been tested on one real vector (pMCB306) and on synthetic vectors, so compare the designed oligos with your vector's published oligo design before ordering. It currently designs sgRNAs only; shRNA hairpin vectors such as pLKO.1 need a different insert and are not supported yet.
 
 ## Do the oligos need to be phosphorylated?
 

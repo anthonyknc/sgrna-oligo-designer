@@ -40,10 +40,11 @@ IDT_SCALE      = "25nm"
 IDT_PURIF      = "STD"
 IDT_COL_WIDTHS = {"A": 12.54, "B": 41.54, "C": 10.18, "D": 18.82}
 
-# The enzymes listed first in the app (BsmBI/Esp3I are isoschizomers). Any other eligible
-# enzyme can be chosen under "Other"; see all_enzymes(). Cut geometry always comes from
-# Bio.Restriction.
-ENZYMES = ("BsmBI", "Esp3I", "BsaI", "BbsI")
+# The enzymes listed first in the app, chosen from Addgene's CRISPR plasmids. BsmBI/Esp3I and
+# BbsI/BpiI are isoschizomer pairs (same site and cut), so each pair is one entry. Any other
+# eligible enzyme can be chosen under "Other"; see all_enzymes(). Cut geometry always comes
+# from Bio.Restriction.
+ENZYMES = ("BsmBI", "BbsI", "BsaI", "SapI")
 
 # An enzyme is offered only if it is commercially available, recognises a plain ACGT site of
 # at least MIN_SITE bases, is non-palindromic, cuts outside its site with a single cut on
@@ -64,10 +65,30 @@ ORIENTATIONS = ("auto", "forward", "reverse")
 # this in essentially every SpCas9 vector, which lets us detect orientation.
 SCAFFOLD_START = "GTTT"
 
+# Start of the Cas9 scaffold, allowing the common variants (GTTTTAGAGC, improved GTTTAAGAGC).
+SCAFFOLD_RE = re.compile("GTTT[ACGT]AGAGC")
+SPACER_LEN  = 20      # assumed length of the vector's placeholder spacer when suggesting flanks
+
 # Largest sgRNA table accepted in one run (keeps the web app responsive).
 MAX_SGRNAS = 1000
 
 _COMPLEMENT = str.maketrans("ACGTacgt", "TGCAtgca")
+
+
+_IUPAC_RE = {"A": "A", "C": "C", "G": "G", "T": "T", "R": "[AG]", "Y": "[CT]", "S": "[CG]",
+             "W": "[AT]", "K": "[GT]", "M": "[AC]", "B": "[CGT]", "D": "[AGT]", "H": "[ACT]",
+             "V": "[ACG]", "N": "[ACGT]"}
+_IUPAC_COMP = {"A": "T", "T": "A", "C": "G", "G": "C", "R": "Y", "Y": "R", "S": "S", "W": "W",
+               "K": "M", "M": "K", "B": "V", "V": "B", "D": "H", "H": "D", "N": "N"}
+
+
+def _site_regexes(site: str) -> tuple[str, str]:
+    """Regexes matching an (IUPAC) recognition site on the top and on the bottom strand."""
+    site = site.upper()
+    return (
+        "".join(_IUPAC_RE[c] for c in site),
+        "".join(_IUPAC_RE[_IUPAC_COMP[c]] for c in reversed(site)),
+    )
 
 
 def reverse_complement(seq: str) -> str:
@@ -165,11 +186,47 @@ class CloningSite:
     right_context:  str     # detect enzyme sites created at the junctions
     vector_length:  int
     warnings:       tuple = ()
+    # --- two-enzyme / general geometry (defaults describe one 5'-overhang enzyme on both sides)
+    enzyme_b:         str = ""      # second enzyme, if the two ends are cut by different enzymes
+    site_patterns:    tuple = ()    # regexes for every recognition site; empty = derive from enzyme_site
+    left_extra:       str = ""      # constant bases between the left overhang and the spacer
+    right_extra:      str = ""      # constant bases between the spacer and the right overhang
+    left_top_trim:    int = 0       # bases of the assembled insert missing from each oligo's ends;
+    left_bottom_trim: "int | None" = None    # None = the overhang length (a 5' overhang end)
+    right_top_trim:   "int | None" = None
+    right_bottom_trim: int = 0
 
     @property
     def removed_length(self) -> int:
         """Bases between the two overhangs that are replaced by the insert."""
         return self.replace_end - self.replace_start
+
+    @property
+    def left_kind(self) -> str:
+        """Overhang type at the left end of the insert: 5' or 3'."""
+        return "3'" if self.left_top_trim > 0 else "5'"
+
+    @property
+    def right_kind(self) -> str:
+        """Overhang type at the right end of the insert: 5' or 3'."""
+        return "3'" if self.right_bottom_trim > 0 else "5'"
+
+    @property
+    def enzymes(self) -> str:
+        """Display name of the enzyme(s), e.g. 'BsmBI' or 'BstXI + BlpI'."""
+        return f"{self.enzyme} + {self.enzyme_b}" if self.enzyme_b else self.enzyme
+
+
+def _crosses_origin_message(label: str, noun: str, removed: int, other: int) -> str:
+    return (
+        f"The two {label} {noun} split the plasmid into a {removed} bp piece between the "
+        f"{noun} and a {other} bp piece that crosses the origin (position 1) of the map. "
+        "The shorter piece is taken to be the stuffer, and a stuffer that crosses the origin is "
+        "not supported. Move the origin elsewhere in your plasmid editor, re-export the "
+        "GenBank file, and try again. If that does not fit your vector, check that "
+        f"{label} is what is used to clone into it (it may just happen to cut there by chance), "
+        "or that the stuffer is not the longer piece, which is not supported yet."
+    )
 
 
 def _locate(seq: str, enzyme: Enzyme) -> tuple[int, int]:
@@ -210,16 +267,7 @@ def _locate(seq: str, enzyme: Enzyme) -> tuple[int, int]:
         )
     removed, other_piece = y0 - (x0 + k), n - (y0 + k - x0)
     if removed > other_piece:
-        # the shorter piece is the one crossing the origin
-        raise ValueError(
-            f"The two {enzyme.name} sites split the plasmid into a {removed} bp piece between the "
-            f"sites and a {other_piece} bp piece that crosses the origin (position 1) of the map. "
-            "The shorter piece is taken to be the stuffer, and a stuffer that crosses the origin is "
-            "not supported. Move the origin elsewhere in your plasmid editor, re-export the "
-            "GenBank file, and try again. If that does not fit your vector, check that "
-            f"{enzyme.name} is the enzyme used to clone into it (it may just happen to cut twice "
-            "elsewhere), or that the stuffer is not the longer piece, which is not supported yet."
-        )
+        raise ValueError(_crosses_origin_message(enzyme.name, "sites", removed, other_piece))
     return x0, y0
 
 
@@ -250,7 +298,189 @@ def _site_from(seq: str, enzyme: Enzyme, x0: int, y0: int, orientation: str,
         right_context=seq[y0 + k:y0 + k + ctx],
         vector_length=len(seq),
         warnings=tuple(notes),
+        site_patterns=_site_regexes(enzyme.site),
     )
+
+
+# ---------------------------------------------------------------------------
+# Two-enzyme cloning (the two ends are cut by different enzymes)
+# ---------------------------------------------------------------------------
+
+@lru_cache(maxsize=1)
+def two_enzyme_candidates() -> dict:
+    """
+    Every commercially available enzyme (from Bio.Restriction) that can serve as one end of a
+    two-enzyme cloning site: it leaves a 5' or 3' overhang and cuts in one place. Palindromic
+    and degenerate sites (e.g. EcoRI, AgeI, BstXI, BlpI) are fine here. Keyed by name.
+    """
+    from Bio import Restriction
+
+    found = {
+        e.__name__: e for e in Restriction.AllEnzymes
+        if e.suppl and e.ovhg and e.fst5 is not None and e.scd5 is None and e.scd3 is None
+    }
+    return dict(sorted(found.items(), key=lambda kv: kv[0].lower()))
+
+
+def _cuts(seq: str, enz) -> list[tuple[int, int]]:
+    """
+    Cuts of ``enz`` on a circular sequence as (top, bottom) boundary positions: the top strand
+    is cut between bases top-1 and top, the bottom strand between bases bottom-1 and bottom
+    (both in top-strand coordinates). A 5' overhang has bottom > top, a 3' overhang bottom < top.
+    """
+    from Bio.Seq import Seq
+
+    n = len(seq)
+    out = []
+    for p in enz.search(Seq(seq), linear=False):
+        top = (p - 1) % n
+        out.append((top, top - enz.ovhg))
+    return out
+
+
+def single_cutters(vector_record) -> list[str]:
+    """Names of the enzymes usable in two-enzyme mode that cut this vector exactly once."""
+    seq = str(vector_record.seq).upper()
+    return [name for name, enz in two_enzyme_candidates().items() if len(_cuts(seq, enz)) == 1]
+
+
+def _locate_two(seq: str, enz_a, enz_b):
+    """
+    Digest ``seq`` in silico with two different enzymes that each cut once. Returns the left
+    and right cut as (enzyme, top, bottom, lowest, highest) tuples, where lowest/highest bound
+    the overhang. The piece between the cuts is the stuffer: the shorter of the two circular
+    pieces, which must not cross the origin.
+    """
+    n, cuts = len(seq), []
+    for enz in (enz_a, enz_b):
+        found = _cuts(seq, enz)
+        if len(found) != 1:
+            raise ValueError(
+                f"{enz.__name__} cuts this vector {len(found)} time(s), but each of the two enzymes "
+                "must cut it exactly once."
+            )
+        top, bottom = found[0]
+        cuts.append((enz, top, bottom, min(top, bottom), max(top, bottom)))
+    left, right = sorted(cuts, key=lambda c: c[3])
+    if left[3] < 0 or right[4] > n:
+        raise ValueError(
+            f"The {left[0].__name__}/{right[0].__name__} cloning site spans the origin (position 1) "
+            "of the plasmid map. Move the origin elsewhere in your plasmid editor, re-export the "
+            "GenBank file, and try again."
+        )
+    if left[4] > right[3]:
+        raise ValueError(
+            f"The {left[0].__name__} and {right[0].__name__} cuts overlap, so no insert can be "
+            "placed between them."
+        )
+    removed, other = right[3] - left[4], n - (right[4] - left[3])
+    if removed > other:
+        raise ValueError(_crosses_origin_message(
+            f"{left[0].__name__}/{right[0].__name__}", "cuts", removed, other))
+    return left, right
+
+
+def _suggest_flanks(seq: str, left_max: int, right_min: int, right_max: int):
+    """
+    Guess the constant bases around the spacer from the vector itself. Returns
+    ``(left_extra, right_extra, scaffold_found)``.
+
+    The Cas9 scaffold start (GTTT.AGAGC) marks the 3' end of the spacer slot, so the bases from
+    its first G up to the right overhang are the right flank. The slot is assumed to be
+    ``SPACER_LEN`` bases long, so the bases before it (after the left overhang) are the left flank.
+    """
+    m = SCAFFOLD_RE.search(seq, left_max, min(len(seq), right_max + 10))
+    if m is None or m.start() >= right_max:
+        return "", "", False
+    right = seq[m.start():right_min] if m.start() < right_min else ""
+    left = seq[left_max:m.start() - SPACER_LEN] if m.start() - SPACER_LEN >= left_max else ""
+    return left, right, True
+
+
+def _clean_flank(value: str, label: str) -> str:
+    flank = "".join(value.split()).upper()
+    if set(flank) - set("ACGT"):
+        raise ValueError(f"{label} may contain only A, C, G and T.")
+    return flank
+
+
+def _site_two(seq, left, right, orientation, left_extra, right_extra):
+    """Build a CloningSite from a two-enzyme digest. Returns (site, scaffold_found)."""
+    (ea, ta, ba, ma, Ma), (eb, tb, bb, mb, Mb) = left, right
+    left_ov, right_ov = seq[ma:Ma], seq[mb:Mb]
+    sug_l, sug_r, found = _suggest_flanks(seq, Ma, mb, Mb)
+    l_extra = sug_l if left_extra is None else _clean_flank(left_extra, "The 5' flanking bases")
+    r_extra = sug_r if right_extra is None else _clean_flank(right_extra, "The 3' flanking bases")
+
+    notes = []
+    if left_ov == right_ov:
+        notes.append(f"Both overhangs are identical ({left_ov}), so the insert can ligate in either "
+                     "orientation. Check the vector.")
+    pal = [ov for ov in (left_ov, right_ov) if ov == reverse_complement(ov)]
+    if pal and left_ov != right_ov:
+        notes.append(f"An overhang ({pal[0]}) is palindromic, so vector ends can ligate to each other "
+                     "and empty vectors are likely.")
+    if left_extra is None and right_extra is None and not found:
+        notes.append("The Cas9 scaffold start was not found between the cuts, so the constant bases "
+                     "around the spacer could not be worked out. Enter them under Advanced options "
+                     "(as in your vector's oligo design instructions).")
+
+    pats = tuple(dict.fromkeys(
+        pat for e in (ea, eb) for pat in _site_regexes(str(e.site))))
+    ctx = max(len(str(ea.site)), len(str(eb.site))) - 1
+    site = CloningSite(
+        enzyme=ea.__name__,
+        enzyme_b=eb.__name__,
+        enzyme_site=f"{ea.site} / {eb.site}",
+        orientation=orientation,
+        left_overhang=left_ov,
+        right_overhang=right_ov,
+        replace_start=Ma,
+        replace_end=mb,
+        left_context=seq[max(0, ma - ctx):ma],
+        right_context=seq[Mb:Mb + ctx],
+        vector_length=len(seq),
+        warnings=tuple(notes),
+        site_patterns=pats,
+        left_extra=l_extra,
+        right_extra=r_extra,
+        left_top_trim=ta - ma,
+        left_bottom_trim=ba - ma,
+        right_top_trim=Mb - tb,
+        right_bottom_trim=Mb - bb,
+    )
+    return site, found
+
+
+def _find_two_enzyme_site(seq, rc_seq, name_a, name_b, orientation, left_extra, right_extra):
+    candidates = two_enzyme_candidates()
+    for name in (name_a, name_b):
+        if name not in candidates:
+            raise ValueError(
+                f"Unsupported enzyme '{name}'. It must be commercially available and leave a 5' or "
+                "3' overhang."
+            )
+    if name_a == name_b:
+        raise ValueError("Choose two different enzymes (or use one-enzyme mode).")
+    ea, eb = candidates[name_a], candidates[name_b]
+
+    def build(frame, tag):
+        left, right = _locate_two(frame, ea, eb)
+        return _site_two(frame, left, right, tag, left_extra, right_extra)
+
+    if orientation == "forward":
+        return build(seq, "forward")[0]
+    if orientation == "reverse":
+        return build(rc_seq, "reverse")[0]
+    fwd, fwd_found = build(seq, "forward")
+    if fwd_found:
+        return fwd
+    rev, rev_found = build(rc_seq, "reverse")
+    if rev_found:
+        return rev
+    return CloningSite(**{**fwd.__dict__, "warnings": fwd.warnings + (
+        "Could not confirm the sgRNA orientation: the Cas9 scaffold start was not found on either "
+        "strand. Assuming forward; set the orientation under Advanced options if this is wrong.",)})
 
 
 def _looks_like_scaffold_start(right_overhang: str) -> bool:
@@ -262,7 +492,15 @@ def _looks_like_scaffold_start(right_overhang: str) -> bool:
     return len(right_overhang) >= 3 and right_overhang[:n] == SCAFFOLD_START[:n]
 
 
-def find_cloning_site(vector_record, enzyme_name: str, orientation: str = "auto") -> CloningSite:
+def find_cloning_site(
+    vector_record,
+    enzyme_name: str,
+    orientation: str = "auto",
+    *,
+    enzyme_b: "str | None" = None,
+    left_extra: "str | None" = None,
+    right_extra: "str | None" = None,
+) -> CloningSite:
     """
     Digest the vector in silico with ``enzyme_name`` and describe the cloning site.
 
@@ -276,6 +514,14 @@ def find_cloning_site(vector_record, enzyme_name: str, orientation: str = "auto"
         'forward', 'reverse', or 'auto'. Auto-detection looks for the SpCas9
         scaffold start (GTTT) in the right-hand overhang on either strand and
         falls back to 'forward' with a warning if neither matches.
+    enzyme_b : str, optional
+        Two-enzyme mode: a second, different enzyme. ``enzyme_name`` and ``enzyme_b``
+        must each cut the vector exactly once (see :func:`single_cutters`), and may be
+        any commercially available enzyme (palindromic, degenerate, 3' or 5' overhang).
+    left_extra, right_extra : str, optional
+        Two-enzyme mode only: the constant bases that sit between the overhangs and the
+        spacer (for BstXI/BlpI vectors, e.g. ``TTG`` and ``GTTTAAGAGC``). ``None`` means
+        "work them out from the vector" (see :func:`_suggest_flanks`); ``""`` means none.
 
     Raises
     ------
@@ -285,7 +531,7 @@ def find_cloning_site(vector_record, enzyme_name: str, orientation: str = "auto"
     """
     if orientation not in ORIENTATIONS:
         raise ValueError(f"orientation must be one of {ORIENTATIONS}, got '{orientation}'.")
-    enzyme = get_enzyme(enzyme_name)
+    enzyme = None if enzyme_b else get_enzyme(enzyme_name)
     if vector_record.annotations.get("topology") != "circular":
         raise ValueError(
             "The vector GenBank file is not marked circular. Only circular plasmids are supported."
@@ -293,6 +539,11 @@ def find_cloning_site(vector_record, enzyme_name: str, orientation: str = "auto"
 
     seq    = str(vector_record.seq).upper()
     rc_seq = reverse_complement(seq)
+    if enzyme_b:
+        return _find_two_enzyme_site(seq, rc_seq, enzyme_name, enzyme_b, orientation,
+                                     left_extra, right_extra)
+    if left_extra is not None or right_extra is not None:
+        raise ValueError("Flanking bases can only be given in two-enzyme mode.")
     fx0, fy0 = _locate(seq, enzyme)                  # raises with a helpful message
 
     def forward(warnings=()):
@@ -368,15 +619,20 @@ def build_insert_core(sgrna_seq: str, g_mode: str = "always") -> str:
 
 def design_oligos(core: str, site: CloningSite) -> tuple[str, str]:
     """
-    Build the sense and antisense oligos for one insert.
+    Build the top (sense) and bottom (antisense) oligos for one insert.
 
-    sense     = left overhang + core
-    antisense = reverse complement of (core + right overhang)
+    The assembled insert is ``left overhang + left flank + core + right flank + right overhang``
+    (the overhangs come from the vector). Each oligo is that strand of the insert, minus the
+    bases the vector end already supplies on that strand (recorded in the site's ``*_trim``
+    fields). For one 5'-overhang enzyme this gives the classic
+    ``sense = left overhang + core`` and ``antisense = rc(core + right overhang)``.
     """
-    return (
-        site.left_overhang + core,
-        reverse_complement(core + site.right_overhang),
-    )
+    ins = site.left_overhang + site.left_extra + core + site.right_extra + site.right_overhang
+    l_bot = len(site.left_overhang) if site.left_bottom_trim is None else site.left_bottom_trim
+    r_top = len(site.right_overhang) if site.right_top_trim is None else site.right_top_trim
+    top = ins[site.left_top_trim:len(ins) - r_top]
+    bottom = reverse_complement(ins[l_bot:len(ins) - site.right_bottom_trim])
+    return top, bottom
 
 
 def add_cloning_oligos(
@@ -401,7 +657,7 @@ def add_cloning_oligos(
         raise ValueError(
             f"Column '{seq_col}' not found. Available: {list(rows[0].keys())}"
         )
-    site_pats = (site.enzyme_site, reverse_complement(site.enzyme_site))
+    patterns = site.site_patterns or _site_regexes(site.enzyme_site)
 
     for i, row in enumerate(rows):
         sgrna_id = row.get(id_col, f"row {i + 1}")
@@ -414,10 +670,19 @@ def add_cloning_oligos(
                 "promoters, so the sgRNA may be truncated. Choose another guide if your vector "
                 "uses such a promoter."
             )
-        window = site.left_context + site.left_overhang + core + site.right_overhang + site.right_context
-        if any(p in window for p in site_pats):
+        # Only sites that really lie in the spacer count. The vector's own flanks may legitimately
+        # regenerate a site (e.g. BstXI's final G is the guide's first G), so a site that overlaps the
+        # spacer by a single base is determined by the vector, not by the guide, and is ignored.
+        before = site.left_context + site.left_overhang + site.left_extra
+        window = before + core + site.right_extra + site.right_overhang + site.right_context
+        s0 = len(before) + (len(core) - len(seq))
+        s1 = len(before) + len(core)
+        if any(
+            min(m.start() + len(m.group(1)), s1) - max(m.start(), s0) >= 2
+            for pat in patterns for m in re.finditer(f"(?=({pat}))", window)
+        ):
             notes.append(
-                f"contains a {site.enzyme} recognition site ({site.enzyme_site}); the enzyme "
+                f"contains a {site.enzymes} recognition site ({site.enzyme_site}); the enzyme "
                 "would cut this insert during cloning, so this guide will likely fail."
             )
 
@@ -551,6 +816,15 @@ _RC_KEEP = dict(id=True, name=True, description=True, features=True,
                 annotations=True, letter_annotations=True, dbxrefs=True)
 
 
+def _common_prefix_len(a: str, b: str) -> int:
+    n = 0
+    for x, y in zip(a, b):
+        if x != y:
+            break
+        n += 1
+    return n
+
+
 def insert_sgrna(vector_record, site: CloningSite, core: str, sgrna_seq: str, sgrna_id: str):
     """
     Replace the region between the two overhangs with ``core`` and annotate the sgRNA.
@@ -585,19 +859,22 @@ def insert_sgrna(vector_record, site: CloningSite, core: str, sgrna_seq: str, sg
         raise ValueError("The cloning site was computed from a different vector.")
     r0, r1 = site.replace_start, site.replace_end
     g_len  = len(core) - len(sgrna_seq)
-    # If the vector already has the 5' G right after the left overhang (as ipUSEPR and
-    # lentiCRISPR do), keep that base and its annotations; replace only what follows.
-    if g_len and seq[r0:r0 + g_len].upper() == core[:g_len]:
-        r0 += g_len
-        new_part = core[g_len:]
-    else:
-        new_part = core
-    spacer_start = r0 if new_part == sgrna_seq else r0 + g_len
+    prefix = site.left_extra + core[:g_len]          # constant bases before the spacer
+    suffix = site.right_extra                         # constant bases after the spacer
+    new_part = prefix + sgrna_seq + suffix
+    # Bases that are already identical at the edges of the replaced region (the vector's own
+    # 5' G, flanks, ...) stay untouched, so their annotations survive.
+    old = seq[r0:r1].upper()
+    p = _common_prefix_len(old, prefix.upper())
+    q = _common_prefix_len(old[p:][::-1], suffix.upper()[::-1])
+    a0, a1 = r0 + p, r1 - q
+    mid = new_part[p:len(new_part) - q]
+    spacer_start = r0 + len(prefix)
 
     record     = copy.deepcopy(frame)
-    record.seq = Seq(seq[:r0] + new_part + seq[r1:])
+    record.seq = Seq(seq[:a0] + mid + seq[a1:])
     record.features = [
-        f for f in (_remap_feature(f, r0, r1, len(new_part)) for f in frame.features)
+        f for f in (_remap_feature(f, a0, a1, len(mid)) for f in frame.features)
         if f is not None
     ]
     record.features.append(

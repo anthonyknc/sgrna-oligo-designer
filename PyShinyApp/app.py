@@ -26,6 +26,7 @@ from sgrna_oligo_designer import (
     read_input,
     read_vector_gb,
     sanitize_name,
+    single_cutters,
     validate_ids,
     write_gb_files,
     write_idt_excel,
@@ -49,6 +50,9 @@ _VECTORS = {
 }
 _UPLOAD = "upload"
 _OTHER = "__other__"      # enzyme dropdown value that reveals the full enzyme search
+
+# Same-site enzymes are shown together; either name works (Esp3I and BpiI are also under "Other").
+_ENZYME_LABELS = {"BsmBI": "BsmBI / Esp3I", "BbsI": "BbsI / BpiI"}
 
 _G_CHOICES = {
     "always":    "Always add G (standard)",
@@ -182,9 +186,19 @@ _TIP_ENZYME = (
     "The Type IIS enzyme used for sgRNA cloning. The app cuts the vector in silico at the "
     "enzyme's two sites and reads the overhangs from the cuts, so you never type them. The vector "
     "must have exactly two sites for the enzyme you pick. Choose “Other…” to search every "
-    "commercially available Type IIS enzyme with a 3–5 nt overhang (e.g. SapI, BspQI, BtgZI). "
+    "commercially available Type IIS enzyme with a 3–5 nt overhang (e.g. BspQI, BtgZI, FokI). "
     "For an enzyme not on the common list, check that it suits your vector (for example "
     "methylation sensitivity) and follow the supplier's protocol.",
+)
+_TIP_MODE = (
+    "Most sgRNA vectors are cut by one Type IIS enzyme at two sites. Some, such as BstXI + BlpI or "
+    "AgeI + EcoRI, are cut by two different enzymes instead; choose “Two different enzymes” for those "
+    "and pick them from the enzymes that cut your vector exactly once.",
+)
+_TIP_FLANK = (
+    "The constant bases next to the spacer in your vector's oligo design (for BstXI/BlpI vectors: "
+    "TTG before it and GTTTAAGAGC after it). Leave blank to use the values worked out from the "
+    "vector; type bases to override them. Check them against your vector's cloning protocol.",
 )
 _TIP_G = (
     "The human U6 promoter starts transcription best at a G. ‘Always’ adds a G to every sgRNA "
@@ -303,19 +317,33 @@ app_ui = sui.page_sidebar(
                 accept=[".gb", ".gbk"],
             ),
         ),
-        sui.input_select(
-            "enzyme",
-            _label("Restriction enzyme", *_TIP_ENZYME),
-            {**{e: e for e in ENZYMES}, _OTHER: "Other…"},
+        sui.input_radio_buttons(
+            "enzyme_mode",
+            _label("Cloning enzymes", *_TIP_MODE),
+            {"one": "One enzyme (cuts the vector twice)", "two": "Two different enzymes (each cuts once)"},
+            selected="one",
         ),
         sui.panel_conditional(
-            f"input.enzyme == '{_OTHER}'",
-            sui.input_selectize(
-                "other_enzyme",
-                "Search all enzymes",
-                {n: f"{n}  ({e.site}, {e.overhang_len}-nt overhang)" for n, e in all_enzymes().items()},
-                selected="SapI",
+            "input.enzyme_mode == 'one'",
+            sui.input_select(
+                "enzyme",
+                _label("Restriction enzyme", *_TIP_ENZYME),
+                {**{e: _ENZYME_LABELS.get(e, e) for e in ENZYMES}, _OTHER: "Other…"},
             ),
+            sui.panel_conditional(
+                f"input.enzyme == '{_OTHER}'",
+                sui.input_selectize(
+                    "other_enzyme",
+                    "Search all enzymes",
+                    {n: f"{n}  ({e.site}, {e.overhang_len}-nt overhang)" for n, e in all_enzymes().items()},
+                    selected="SapI",
+                ),
+            ),
+        ),
+        sui.panel_conditional(
+            "input.enzyme_mode == 'two'",
+            sui.input_selectize("enzyme_a", "Enzyme 1 (cuts once)", {"": "Choose an enzyme…"}),
+            sui.input_selectize("enzyme_b", "Enzyme 2 (cuts once)", {"": "Choose an enzyme…"}),
         ),
         sui.input_text(
             "vector_name",
@@ -348,6 +376,13 @@ app_ui = sui.page_sidebar(
                     _label("sgRNA ID column",
                            "Column name in your input file containing unique sgRNA identifiers."),
                     value="sgRNA_id",
+                ),
+                sui.panel_conditional(
+                    "input.enzyme_mode == 'two'",
+                    sui.input_text("left_extra", _label("Bases before the spacer", *_TIP_FLANK, title="Flanking bases"),
+                                   placeholder="auto"),
+                    sui.input_text("right_extra", _label("Bases after the spacer", *_TIP_FLANK, title="Flanking bases"),
+                                   placeholder="auto"),
                 ),
                 sui.input_radio_buttons(
                     "g_mode",
@@ -495,6 +530,7 @@ def server(input, output, session):
     @reactive.effect
     @reactive.event(
         input.vector_choice, input.vector_file, input.enzyme, input.other_enzyme, input.orientation,
+        input.enzyme_mode, input.enzyme_a, input.enzyme_b, input.left_extra, input.right_extra,
         input.g_mode, input.seq_col, input.id_col, input.sgrna_file,
         ignore_init=True,
     )
@@ -546,27 +582,83 @@ def server(input, output, session):
     def enzyme_name() -> str:
         return input.other_enzyme() if input.enzyme() == _OTHER else input.enzyme()
 
+    def _two_enzymes():
+        """The two chosen enzymes, or None until both are picked."""
+        a, b = input.enzyme_a(), input.enzyme_b()
+        return (a, b) if a and b else None
+
+    @reactive.effect
+    def _offer_single_cutters():
+        """In two-enzyme mode, offer only the enzymes that cut this vector exactly once."""
+        if input.enzyme_mode() != "two":
+            return
+        try:
+            cutters = single_cutters(vector_record())
+        except Exception:
+            return
+        with reactive.isolate():
+            keep = {"enzyme_a": input.enzyme_a(), "enzyme_b": input.enzyme_b()}
+        for id_, current in keep.items():
+            ui.update_selectize(
+                id_, choices={"": f"Choose an enzyme… ({len(cutters)} cut once)", **{c: c for c in cutters}},
+                selected=current if current in cutters else "",
+            )
+
+    def _flank(value: str):
+        return value.strip() or None          # blank = work it out from the vector
+
     @reactive.calc
     def cloning_site():
+        if input.enzyme_mode() == "two":
+            pair = _two_enzymes()
+            if pair is None:
+                raise SilentException()
+            return find_cloning_site(
+                vector_record(), pair[0], input.orientation(), enzyme_b=pair[1],
+                left_extra=_flank(input.left_extra()), right_extra=_flank(input.right_extra()),
+            )
         return find_cloning_site(vector_record(), enzyme_name(), input.orientation())
+
+    @reactive.effect
+    def _show_suggested_flanks():
+        """Show the flanking bases worked out from the vector as the placeholders."""
+        pair = _two_enzymes() if input.enzyme_mode() == "two" else None
+        if pair is None:
+            return
+        try:
+            site = find_cloning_site(vector_record(), pair[0], input.orientation(), enzyme_b=pair[1])
+        except Exception:
+            return
+        ui.update_text("left_extra", placeholder=f"auto: {site.left_extra or '(none)'}")
+        ui.update_text("right_extra", placeholder=f"auto: {site.right_extra or '(none)'}")
 
     @output
     @render.ui
     def site_info():
         try:
             site = cloning_site()
+        except SilentException:
+            return sui.tags.p("Choose the two enzymes to see the cloning site.", style="color:#6c757d;")
         except Exception as e:
             if input.vector_choice() == _UPLOAD and not input.vector_file():
                 return sui.tags.p("Upload a vector GenBank file to see its cloning site.",
                                   style="color:#6c757d;")
             return sui.tags.div(str(e), class_="alert alert-danger", role="alert")
+        cuts = "cuts the vector once each" if site.enzyme_b else "cuts the vector at two sites"
+        flanks = []
+        if site.left_extra or site.right_extra:
+            flanks = [
+                " Constant bases added around the spacer: ",
+                sui.tags.code(site.left_extra or "–"), " before and ",
+                sui.tags.code(site.right_extra or "–"), " after.",
+            ]
         items = [
             sui.tags.div(
-                sui.tags.strong(f"✓ {site.enzyme}"), f" cuts the vector at two sites. ",
-                f"Overhangs: ", sui.tags.code(site.left_overhang), " (5′) and ",
-                sui.tags.code(site.right_overhang), " (3′). ",
+                sui.tags.strong(f"✓ {site.enzymes}"), f" {cuts}. ",
+                "Overhangs: ", sui.tags.code(site.left_overhang), f" ({site.left_kind} overhang, left) and ",
+                sui.tags.code(site.right_overhang), f" ({site.right_kind} overhang, right). ",
                 f"{site.removed_length} bp between the cuts are replaced by the sgRNA. "
-                f"Orientation: {site.orientation}.",
+                f"Orientation: {site.orientation}.", *flanks,
                 class_="alert alert-success", role="alert",
             )
         ]
