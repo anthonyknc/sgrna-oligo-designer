@@ -66,6 +66,10 @@ Things that span functions and are easy to miss:
 - Field help is a click-only `?` popover (`_info`/`_label` in `app.py`); a small JS handler closes
   open popovers on outside click/Escape. Don't switch to Bootstrap's `focus` trigger: Safari doesn't
   focus buttons on click.
+- User-supplied text that reaches files is sanitised: sgRNA IDs go through `validate_ids` (letters,
+  digits, `_ - .` only; blocks spaces that break GenBank LOCUS lines and a leading `=` that Excel
+  runs as a formula) and file/vector names through `sanitize_name` (cannot leave the output dir).
+  `write_idt_excel` also forces string cells. Keep any new user-controlled name on this path.
 - The app's `cloning_site` calc is live (updates on vector/enzyme change and shows errors inline);
   results calcs fire only on Run/example clicks and are hidden as stale when a setting changes.
 - Golden tests compare GenBank output byte-for-byte (including the LOCUS line), so any change to

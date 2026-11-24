@@ -55,12 +55,63 @@ def test_idt_rows_interleaved():
     assert {r["Scale"] for r in idt} == {"25nm"} and {r["Purification"] for r in idt} == {"STD"}
 
 
-def test_check_unique_ids():
-    sod.check_unique_ids([{"sgRNA_id": "a"}, {"sgRNA_id": "b"}])
+def test_validate_ids_accepts_normal_ids_and_strips_surrounding_whitespace():
+    rows = [{"sgRNA_id": " sg_Luc-474.v2 "}, {"sgRNA_id": "b"}]
+    sod.validate_ids(rows)
+    assert rows[0]["sgRNA_id"] == "sg_Luc-474.v2"
+
+
+@pytest.mark.parametrize("bad", ["my guide", "=HYPERLINK(1)", "+cmd", "a/b", "a;b", "", "  ", "sg\u00e9"])
+def test_validate_ids_rejects_unsafe_ids(bad):
+    with pytest.raises(ValueError, match="Invalid sgRNA ID"):
+        sod.validate_ids([{"sgRNA_id": "ok"}, {"sgRNA_id": bad}])
+
+
+def test_validate_ids_duplicates_and_missing_column():
     with pytest.raises(ValueError, match="Duplicate sgRNA IDs"):
-        sod.check_unique_ids([{"sgRNA_id": "a"}, {"sgRNA_id": "a"}])
+        sod.validate_ids([{"sgRNA_id": "a"}, {"sgRNA_id": "a"}])
     with pytest.raises(ValueError, match="not found"):
-        sod.check_unique_ids([{"x": "a"}])
+        sod.validate_ids([{"x": "a"}])
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("my vector", "my_vector"), ("../../evil", "evil"), ("/abs/path/x", "abs_path_x"),
+    ("..", "unnamed"), ("", "unnamed"), ("a b/c\\d:e", "a_b_c_d_e"), ("ok-name_1.2", "ok-name_1.2"),
+])
+def test_sanitize_name(raw, expected):
+    assert sod.sanitize_name(raw) == expected
+    assert "/" not in sod.sanitize_name(raw) and "\\" not in sod.sanitize_name(raw)
+
+
+def test_idt_excel_never_writes_a_formula(tmp_path):
+    import openpyxl
+    rows = [{"Name": "=HYPERLINK(\"http://x\",\"a\")", "Sequence": "ACGT", "Scale": "25nm", "Purification": "STD"}]
+    out = tmp_path / "o.xlsx"
+    sod.write_idt_excel(rows, out)
+    cell = openpyxl.load_workbook(out).active["A2"]
+    assert cell.data_type == "s" and cell.value.startswith("=")
+
+
+def _plasmids():
+    from pathlib import Path
+    vec = sod.read_vector_gb(Path(__file__).resolve().parent.parent / "PyShinyApp" / "vectors" / "ipUSEPR.gb")
+    site = sod.find_cloning_site(vec, "BsmBI")
+    rows = sod.add_cloning_oligos([{"sgRNA_id": "a", "sgRNA_seq": SG}], site)
+    return sod.build_plasmid_records(rows, vec, site)
+
+
+@pytest.mark.parametrize("stem", ["../../escaped", "/tmp/escaped_abs", "a/b/c", "..", ""])
+def test_combined_filename_cannot_leave_the_output_directory(tmp_path, stem):
+    out = tmp_path / "out"
+    sod.write_gb_files(_plasmids(), out, "v", multi_gb=True, combined_stem=stem)
+    written = list(tmp_path.rglob("*.gb"))
+    assert len(written) == 1 and written[0].parent == out
+
+
+def test_vector_name_with_spaces_no_longer_breaks_genbank_output(tmp_path):
+    sod.write_gb_files(_plasmids(), tmp_path, "my vector v2", multi_gb=True)
+    text = next(tmp_path.glob("*.gb")).read_text()
+    assert "my_vector_v2_a" in text.splitlines()[0]
 
 
 def test_read_input_drops_blank_rows_and_bom(tmp_path):

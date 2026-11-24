@@ -20,10 +20,11 @@ from sgrna_oligo_designer import (
     add_cloning_oligos,
     build_idt_rows,
     build_plasmid_records,
-    check_unique_ids,
     find_cloning_site,
     read_input,
     read_vector_gb,
+    sanitize_name,
+    validate_ids,
     write_gb_files,
     write_idt_excel,
 )
@@ -516,9 +517,9 @@ def server(input, output, session):
     @reactive.calc
     def vector_label() -> str:
         if input.vector_name().strip():
-            return input.vector_name().strip()
+            return sanitize_name(input.vector_name(), "vector")
         if input.vector_choice() == _UPLOAD:
-            return Path(input.vector_file()[0]["name"]).stem
+            return sanitize_name(Path(input.vector_file()[0]["name"]).stem, "vector")
         return input.vector_choice()
 
     @reactive.calc
@@ -558,7 +559,7 @@ def server(input, output, session):
         else:
             req(input.sgrna_file())
             rows = read_input(Path(input.sgrna_file()[0]["datapath"]))
-        check_unique_ids(rows, id_col=input.id_col())
+        validate_ids(rows, id_col=input.id_col())
         return add_cloning_oligos(
             rows,
             cloning_site(),
@@ -643,7 +644,7 @@ def server(input, output, session):
         filename=lambda: (
             "example_sgRNA_seqs_IDT_orderForm.xlsx"
             if _use_example()
-            else f"{Path(input.sgrna_file()[0]['name']).stem}_IDT_orderForm.xlsx"
+            else f"{sanitize_name(Path(input.sgrna_file()[0]['name']).stem, 'sgRNA')}_IDT_orderForm.xlsx"
             if input.sgrna_file()
             else "IDT_orderForm.xlsx"
         )
@@ -660,13 +661,13 @@ def server(input, output, session):
             tmp_path.unlink(missing_ok=True)
 
     @render.download(
-        filename=lambda: f"{input.combined_name() or 'combined_plasmids'}.gb"
+        filename=lambda: f"{sanitize_name(input.combined_name(), 'combined_plasmids')}.gb"
     )
     def download_gb():
         req(not _stale())
         req(plasmid_records())
         vector_name  = vector_label()
-        combined_stem = input.combined_name() or "combined_plasmids"
+        combined_stem = sanitize_name(input.combined_name(), "combined_plasmids")
         with tempfile.TemporaryDirectory() as tmp_dir:
             write_gb_files(
                 plasmid_records(),

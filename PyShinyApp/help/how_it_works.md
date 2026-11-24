@@ -23,31 +23,34 @@ The app checks the following and tells you if one fails:
 ## A note on the extra G in the oligo sequences
 
 You may notice that the sense oligo begins with `CACCG` rather than just `CACC`.
-The final `G` is not part of your 20-mer sgRNA sequence — it is added
-deliberately for the following reason:
+The final `G` is not part of your 20-mer sgRNA sequence. It is added on purpose.
 
 The **human U6 promoter**, which drives sgRNA expression in most mammalian CRISPR
-vectors, is an RNA Polymerase III promoter that requires a **guanosine (G) at the
-+1 transcription start site** for efficient RNA synthesis
+vectors, is an RNA polymerase III promoter that **strongly prefers a guanosine (G) as the
+first transcribed base** (+1)
 ([Ran et al., *Nat Protoc*, 2013](https://pubmed.ncbi.nlm.nih.gov/24157548/)).
-When the sgRNA target sequence does not naturally begin with G, an extra G is prepended
-to the sense oligo to ensure robust transcription.
+A 5' G therefore helps ensure efficient transcription.
 
-Importantly, **this extra G does not significantly reduce *Sp*Cas9 on-target
-cleavage activity**, as mismatches at the 5' PAM-distal end of the sgRNA are
-generally better tolerated than those at the 3' PAM-proximal seed region
-([Hsu et al., *Nat Biotechnol*, 2013](https://pubmed.ncbi.nlm.nih.gov/23873081/)),
-though tolerance is sequence-dependent.
-
-If your sgRNA sequence already starts with G, the extra G is still added by default (you can change this under **Advanced options**),
-resulting in a 21-nt sgRNA with a 5'-GG- start. This is the standard convention for
-*Bsm*BI-based lentiviral CRISPR vectors, as explicitly specified in the Zhang lab's
-official cloning protocol for lentiCRISPR v2 and lentiGuide-Puro
+**By default the app adds this G to every sgRNA, whether or not the sequence already
+starts with G.** A sgRNA that starts with G becomes a 21-nt guide with a 5'-GG- start.
+This is the standard convention for *Bsm*BI-based lentiviral CRISPR vectors, as specified in
+the Zhang lab's cloning protocol for lentiCRISPR v2 and lentiGuide-Puro
 ([Addgene #52963](https://www.addgene.org/52963/)), where the sense oligo is always
-designed as `5'-CACCG-[20 bp target]-3'` regardless of the starting nucleotide, and
-confirmed by the [Broad Institute GPP cloning protocol](https://portals.broadinstitute.org/gpp/public/dir/download?dirpath=protocols/production&filename=cloning_of_oligos_for_sgRNA_shRNA_nov2019.pdf).
+designed as `5'-CACCG-[20 bp target]-3'`, and in the
+[Broad Institute GPP cloning protocol](https://portals.broadinstitute.org/gpp/public/dir/download?dirpath=protocols/production&filename=cloning_of_oligos_for_sgRNA_shRNA_nov2019.pdf).
 This is also the convention we follow in our lab.
 
+Under **Advanced options** you can instead add the G only when the sgRNA does not already
+start with one, or never add it, for example if your sgRNA is driven by a promoter other
+than U6. Other RNA polymerase III promoters (such as H1 or 7SK) may prefer a different
+first base, so check the requirements of yours.
+
+The extra 5' G is widely used and is generally well tolerated in practice. This fits with
+the observation that SpCas9 tolerates mismatches at the PAM-distal 5' end of the guide
+better than at the PAM-proximal seed region
+([Hsu et al., *Nat Biotechnol*, 2013](https://pubmed.ncbi.nlm.nih.gov/23873081/)).
+That study looked at mismatches rather than an added base, so treat it as supporting
+evidence rather than proof, and note that tolerance depends on the sequence.
 
 ## Outputs explained
 
@@ -75,6 +78,14 @@ The construct name in each LOCUS line (e.g. `ipUSEPR_sg_Luc_474`) is
 `<vector name>_<sgRNA ID>`, so SnapGene and Benchling display the correct
 construct name when the file is imported.
 
+
+## Do the oligos need to be phosphorylated?
+
+No. The oligos are ordered without a 5' phosphate, and that is fine. The digested vector
+ends carry 5' phosphates, so the ligase joins each vector end to the 3' end of the annealed
+oligos. The two remaining nicks (at the oligos' 5' ends) are repaired in the bacteria after
+transformation. Some published protocols add a T4 PNK step to phosphorylate the oligos
+first; that is optional here.
 
 ## Supported vectors
 

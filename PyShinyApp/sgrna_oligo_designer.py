@@ -23,6 +23,7 @@ This module has no command-line interface; the Shiny app is the only entry point
 
 import copy
 import csv
+import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -358,11 +359,40 @@ def add_cloning_oligos(
     return rows
 
 
-def check_unique_ids(rows: list[dict], id_col: str = "sgRNA_id") -> None:
-    """Raise ValueError if the ID column is missing or any sgRNA identifier is repeated."""
+_NAME_OK  = re.compile(r"[A-Za-z0-9_.\-]+")
+_NAME_BAD = re.compile(r"[^A-Za-z0-9_.\-]+")
+
+
+def sanitize_name(name: str, default: str = "unnamed") -> str:
+    """
+    Make a string safe to use in a file name or a GenBank LOCUS name: runs of any
+    character other than letters, digits, '_', '.' and '-' become '_', and leading or
+    trailing '.' / '_' are dropped (so '../x' and '/abs/x' can never leave a directory).
+    """
+    return _NAME_BAD.sub("_", str(name).strip()).strip("._") or default
+
+
+def validate_ids(rows: list[dict], id_col: str = "sgRNA_id") -> None:
+    """
+    Check the sgRNA ID column and strip stray whitespace around each ID (in place).
+
+    IDs end up in file names, GenBank LOCUS names and the IDT order form, so they may
+    contain only letters, digits, '_', '-' and '.'. In particular this rules out spaces
+    (which break GenBank LOCUS lines) and a leading '=' (which Excel runs as a formula).
+    Raises ValueError for a missing column, invalid characters, or duplicate IDs.
+    """
     if rows and id_col not in rows[0]:
         raise ValueError(
             f"Column '{id_col}' not found. Available: {list(rows[0].keys())}"
+        )
+    for r in rows:
+        r[id_col] = str(r[id_col]).strip()
+    bad = [r[id_col] for r in rows if not _NAME_OK.fullmatch(r[id_col])]
+    if bad:
+        raise ValueError(
+            f"Invalid sgRNA ID(s): {bad[:5]}{' ...' if len(bad) > 5 else ''}. IDs may contain only "
+            "letters, digits, underscores (_), hyphens (-) and dots (.), with no spaces. "
+            "Rename them in your table, for example by replacing spaces with underscores."
         )
     duplicates = [i for i, n in Counter(r[id_col] for r in rows).items() if n > 1]
     if duplicates:
@@ -542,6 +572,8 @@ def write_gb_files(
     from Bio import SeqIO
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    vector_name   = sanitize_name(vector_name, "vector")
+    combined_stem = sanitize_name(combined_stem, "combined_plasmids")
 
     def _named(record):
         r             = copy.deepcopy(record)
@@ -623,7 +655,10 @@ def write_idt_excel(idt_rows: list[dict], path: Path) -> None:
     data_font = Font(name="Calibri")
     for row_idx, row in enumerate(idt_rows, start=2):
         for col_idx, col_name in enumerate(IDT_COLUMNS, start=1):
-            ws.cell(row=row_idx, column=col_idx, value=row[col_name]).font = data_font
+            cell = ws.cell(row=row_idx, column=col_idx, value=row[col_name])
+            cell.font = data_font
+            if isinstance(row[col_name], str):
+                cell.data_type = "s"      # a leading '=' must stay text, never a formula
 
     for col_letter, width in IDT_COL_WIDTHS.items():
         ws.column_dimensions[col_letter].width = width

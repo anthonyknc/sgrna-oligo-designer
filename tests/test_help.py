@@ -54,3 +54,10 @@ def test_app_version_matches_pyproject_and_last_update_is_a_date():
     version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
     assert app._VERSION == f"v{version}"
     datetime.date.fromisoformat(app._LAST_UPDATE)      # raises unless YYYY-MM-DD
+
+
+def test_guide_states_the_main_points_correctly():
+    how = (HELP / "how_it_works.md").read_text(encoding="utf-8")
+    assert "strongly prefers" in how and "requires a" not in how          # 5' G wording
+    assert "Do the oligos need to be phosphorylated?" in how               # PNK note
+    assert "No. The oligos are ordered without a 5' phosphate" in how
