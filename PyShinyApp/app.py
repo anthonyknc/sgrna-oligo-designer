@@ -47,27 +47,27 @@ from sgrna_oligo_designer import (
 # Constants
 # ---------------------------------------------------------------------------
 
-_VERSION      = "v2.1.0"
-_LAST_UPDATE  = "2026-11-23"   # YYYY-MM-DD; bump together with _VERSION on each release
+_VERSION      = "v2.1"
+_LAST_UPDATE  = "2026-11-24"   # YYYY-MM-DD; bump together with _VERSION on each release
 _GITHUB_URL   = "https://github.com/anthonyknc/sgrna-oligo-designer"
 _HERE         = Path(__file__).parent
 _EXAMPLE_XLSX = _HERE / "example_inputs" / "example_sgRNA_seqs.xlsx"
 
 # Vectors bundled with the app: key -> (label, GenBank file)
 _VECTORS = {
-    "ipUSEPR":          ("ipUSEPR",          _HERE / "vectors" / "ipUSEPR.gb"),
-    "lentiCRISPRv2":    ("lentiCRISPR v2",   _HERE / "vectors" / "lentiCRISPRv2.gb"),
-    "LentiCRISPRv2GFP": ("LentiCRISPRv2GFP", _HERE / "vectors" / "LentiCRISPRv2GFP.gb"),
-    "lentiGuide-Puro":  ("lentiGuide-Puro (Addgene 52963)", _HERE / "vectors" / "lentiGuide-Puro.gb"),
-    "pX330":            ("pX330 (Addgene 42230)", _HERE / "vectors" / "pX330.gb"),
+    "ipUSEPR":          ("ipUSEPR (PMID: 34210975), BsmBI", _HERE / "vectors" / "ipUSEPR.gb"),
+    "lentiCRISPRv2":    ("lentiCRISPR v2 (Addgene 52961), BsmBI", _HERE / "vectors" / "lentiCRISPRv2.gb"),
+    "LentiCRISPRv2GFP": ("LentiCRISPRv2GFP (Addgene 82416), BsmBI", _HERE / "vectors" / "LentiCRISPRv2GFP.gb"),
+    "lentiGuide-Puro":  ("lentiGuide-Puro (Addgene 52963), BsmBI", _HERE / "vectors" / "lentiGuide-Puro.gb"),
+    "pX330":            ("pX330 (Addgene 42230), BbsI", _HERE / "vectors" / "pX330.gb"),
     "pU6-BbsI-CBh-Cas9-T2A-mCherry-H1":
-                        ("pU6-(BbsI)_CBh-Cas9-T2A-mCherry-H1 (Addgene 64217)",
+                        ("pU6-(BbsI)_CBh-Cas9-T2A-mCherry-H1 (Addgene 64217), BbsI",
                          _HERE / "vectors" / "pU6-BbsI_CBh-Cas9-T2A-mCherry-H1.gb"),
-    "phH1-gRNA":        ("phH1-gRNA, H1 promoter (Addgene 53186)", _HERE / "vectors" / "phH1-gRNA.gb"),
+    "phH1-gRNA":        ("phH1-gRNA, H1 promoter (Addgene 53186), BbsI", _HERE / "vectors" / "phH1-gRNA.gb"),
     "pU6-sgRNA-EF1a-puro-T2A-BFP":
-                        ("pU6-sgRNA EF1Alpha-puro-T2A-BFP, BstXI + BlpI (Addgene 60955)",
+                        ("pU6-sgRNA EF1Alpha-puro-T2A-BFP (Addgene 60955), BstXI + BlpI",
                          _HERE / "vectors" / "pU6-sgRNA_EF1Alpha-puro-T2A-BFP.gb"),
-    "pMCB306":          ("pMCB306, mouse U6, BstXI + BlpI (Addgene 89360)", _HERE / "vectors" / "pMCB306.gb"),
+    "pMCB306":          ("pMCB306, mouse U6 (Addgene 89360), BstXI + BlpI", _HERE / "vectors" / "pMCB306.gb"),
 }
 _UPLOAD = "upload"
 _OTHER = "__other__"      # enzyme dropdown value that reveals the full enzyme search
@@ -124,6 +124,11 @@ _TIP_TABLE = (
     " (the 20-nt target sequence, without the PAM or any overhangs). Extra columns are ignored, "
     "and spaces and lowercase are cleaned automatically. Design guides with ",
     _link("CRISPick", _CRISPICK), ". More under Guide → Getting started.",
+)
+_TIP_EXAMPLE = (
+    "Fills in four example sgRNAs (Luc, Ren, Rosa26 and tRFP657 guides) so you can try the app "
+    "without a table. It uses whichever vector and enzyme are selected, and runs the design straight away. "
+    "Uploading your own table replaces the example.",
 )
 _TIP_VECTOR = (
     "The empty vector you will clone into. Nine popular vectors are built in, and the enzyme(s) "
@@ -202,6 +207,10 @@ _CSS = """
 [data-bs-theme="dark"] { --brand: #5eead4; --brand-bg: rgba(94,234,212,.16); }
 body { font-feature-settings: "cv11", "ss01"; }
 .navbar-brand { font-weight: 650; letter-spacing: -0.01em; display: inline-flex; align-items: center; }
+.navbar .navbar-nav > li { display: flex; align-items: center; }
+.navbar .navbar-nav .nav-link, .navbar bslib-input-dark-mode { display: inline-flex; align-items: center; }
+.navbar bslib-input-dark-mode { min-height: 32px; }
+.navbar .navbar-nav a.nav-link > svg { display: block; vertical-align: middle; margin: 2px 0 0 0 !important; position: static; }
 .navbar-brand .badge { font-size: 0.62rem; font-weight: 600; margin-left: 0.6rem; vertical-align: middle; }
 .card { border: 1px solid var(--bs-border-color); border-radius: 0.85rem;
         box-shadow: 0 1px 2px rgba(0,0,0,.04); }
@@ -268,8 +277,12 @@ _TITLE = ui.tags.span(
 
 def _sidebar():
     return ui.sidebar(
-        ui.input_action_button("example_btn", [_fa("flask"), "Load example sgRNAs"],
-                               class_="btn-outline-primary w-100"),
+        ui.div(
+            ui.input_action_button("example_btn", [_fa("flask"), "Load example sgRNAs"],
+                                   class_="btn-outline-primary flex-grow-1"),
+            _info("Load example sgRNAs", *_TIP_EXAMPLE),
+            class_="d-flex align-items-center gap-2",
+        ),
         ui.accordion(
             ui.accordion_panel(
                 "1 · sgRNA table",
@@ -414,6 +427,7 @@ app_ui = ui.page_navbar(
     footer=ui.div(
         ui.tags.hr(),
         ui.p("© 2026 Anthony Chan · ", ui.tags.a("GitHub", href=_GITHUB_URL, target="_blank", rel="noopener"),
+             " · ", ui.tags.a("Change log", href=_GITHUB_URL + "/blob/main/CHANGELOG.md", target="_blank", rel="noopener"),
              " · MIT License"),
         ui.p(f"{_VERSION} · Last Update: {_LAST_UPDATE}", class_="mb-0"),
         class_="app-footer",

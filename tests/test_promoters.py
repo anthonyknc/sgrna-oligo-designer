@@ -123,3 +123,19 @@ def test_h1_found_by_sequence():
     # the dual vector has both a U6 (sgRNA) and an H1 (shRNA) cassette
     names = [p.name for p in find_pol3_promoters(bare(load(VECTORS / "pU6-BbsI_CBh-Cas9-T2A-mCherry-H1.gb")))]
     assert sorted(names) == ["H1", "human U6"]
+
+
+@pytest.mark.parametrize("path", sorted(VECTORS.glob("*.gb")), ids=lambda p: p.name)
+def test_every_bundled_vector_annotation_and_sequence_agree(path):
+    """Every promoter annotated in a bundled vector is also found by sequence, in the same place,
+    so the reference sequences stay consistent with all the example vectors."""
+    rec = load(path)
+    annotated = find_pol3_promoters(rec)
+    by_sequence = _from_sequence(str(rec.seq).upper())
+    assert by_sequence, path.name
+    for a in annotated:
+        if a.name == "U6":
+            continue
+        same = [s for s in by_sequence if s.name == a.name and s.strand == a.strand
+                and a.start <= s.start and s.end <= a.end + 2]
+        assert same, (path.name, a)

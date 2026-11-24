@@ -26,6 +26,7 @@ These files are the single source of truth for it:
 - [How it works](PyShinyApp/help/how_it_works.md): how the cloning is simulated, why there is an extra G, the outputs, supported vectors
 - [Troubleshooting](PyShinyApp/help/troubleshooting.md): what each error and warning means
 - [Citing](PyShinyApp/help/citing.md): how to cite this tool and the ipUSEPR vector
+- [Change log](CHANGELOG.md): what changed in each version
 
 Example inputs are in [`example_inputs/`](example_inputs/), the bundled vectors are in
 [`PyShinyApp/vectors/`](PyShinyApp/vectors/), and example outputs are in [`example_outputs/`](example_outputs/).

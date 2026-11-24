@@ -1,4 +1,4 @@
-LOCUS       LentiCRISPRv2GFP       13131 bp    DNA     circular SYN 18-JUN-2026
+LOCUS       sequence-364369-       13131 bp    DNA     circular SYN 04-SEP-2026
 DEFINITION  3rd generation lentiviral vector expressing GFP alongside Cas9 and 
             an sgRNA cloning site.
 ACCESSION   .
@@ -18,7 +18,7 @@ REFERENCE   1  (bases 1 to 13131)
 REFERENCE   2  (bases 1 to 13131)
   AUTHORS   .
   TITLE     Direct Submission
-  JOURNAL   Exported Jun 21, 2026 from SnapGene 8.2.2
+  JOURNAL   Exported Sep 4, 2026 from SnapGene Server 8.0.1
             https://www.snapgene.com
 COMMENT     SGRef: number: 1; type: "Journal Article"; journalName: "Cancer Res.
             2017 Feb 15. pii: canres.2159.2016. doi: 
@@ -183,10 +183,6 @@ FEATURES             Location/Qualifiers
                      /label=gRNA scaffold
                      /note="guide RNA scaffold for the Streptococcus pyogenes 
                      CRISPR/Cas9 system"
-     misc_feature    complement(7358..7372)
-                     /label=stuffer
-     misc_feature    complement(7373)
-                     /label=Start
      promoter        complement(7374..7622)
                      /label=U6 promoter
                      /note="RNA polymerase III promoter for human U6 snRNA 
@@ -194,8 +190,6 @@ FEATURES             Location/Qualifiers
      primer_bind     complement(7432..7451)
                      /label=LKO.1 5'
                      /note="Human U6 promoter, forward primer"
-     primer_bind     complement(7602..7622)
-                     /label=HU6_seqF
      primer_bind     complement(7602..7622)
                      /label=hU6-F
                      /note="Human U6 promoter, forward primer"

@@ -1,6 +1,6 @@
 [project]
 name = "sgrna-oligo-designer"
-version = "2.1.0"
+version = "2.1"
 description = "Web app that designs sgRNA cloning oligos (IDT order form) and annotated plasmid GenBank files"
 readme = "README.md"
 license = { file = "LICENSE" }

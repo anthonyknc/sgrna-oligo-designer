@@ -25,8 +25,8 @@ Type IIS (restriction-enzyme) cloning of SpCas9 sgRNAs into lentiviral vectors. 
 
 ## Releasing
 
-On each release bump `_VERSION` and `_LAST_UPDATE` in `PyShinyApp/app.py` and `version` in
-`pyproject.toml` (a test checks that the first and last agree), then `uv lock`.
+On each release bump `_VERSION` (format `vMAJOR.MINOR`, no patch digit) and `_LAST_UPDATE` in `PyShinyApp/app.py` and `version`
+in `pyproject.toml` (`MAJOR.MINOR`; a test checks that the first and last agree), add an entry to `CHANGELOG.md`, then `uv lock`.
 
 ## Commands
 

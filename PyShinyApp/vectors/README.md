@@ -7,7 +7,7 @@ when you use it.
 
 | File | Plasmid | Reference | Cloning enzyme(s) |
 |---|---|---|---|
-| `ipUSEPR.gb` | ipUSEPR | see the Citing page of the app | BsmBI |
+| `ipUSEPR.gb` | ipUSEPR (in-house) | PMID: 34210975 | BsmBI |
 | `lentiCRISPRv2.gb` | lentiCRISPR v2, Addgene 52961 | Sanjana et al., Nat Methods 2014 | BsmBI |
 | `LentiCRISPRv2GFP.gb` | LentiCRISPRv2GFP, Addgene 82416 | Addgene | BsmBI |
 | `lentiGuide-Puro.gb` | Addgene 52963 | Sanjana et al., Nat Methods 2014, doi:10.1038/nmeth.3047 | BsmBI |
@@ -18,5 +18,5 @@ when you use it.
 | `pMCB306.gb` | Addgene 89360 (mouse U6) | Han et al., Nat Biotechnol 2017, doi:10.1038/nbt.3834 | BstXI + BlpI |
 
 The H1 and U6 reference sequences used to find promoters (`PyShinyApp/promoters.py`) come from these files.
-The files for Addgene plasmids 42230, 52963, 53186, 60955 and 64217 were downloaded from Addgene in
-November 2026; the first line (LOCUS) of some carries an Addgene sequence number instead of the plasmid name.
+The files for Addgene plasmids 42230, 52961, 82416, 52963, 53186, 60955 and 64217 were downloaded from Addgene in
+November 2026 (52961 and 82416 on 2026-11-24, replacing earlier copies with the same sequence); the first line (LOCUS) of some carries an Addgene sequence number instead of the plasmid name.

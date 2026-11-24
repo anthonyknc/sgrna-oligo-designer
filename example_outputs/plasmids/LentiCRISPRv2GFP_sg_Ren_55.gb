@@ -1,4 +1,4 @@
-LOCUS       LentiCRISPRv2GFP_sg_Ren_55 13136 bp    DNA     circular SYN 18-JUN-2026
+LOCUS       LentiCRISPRv2GFP_sg_Ren_55 13136 bp    DNA     circular SYN 04-SEP-2026
 DEFINITION  sg_Ren_55 cloned into LentiCRISPRv2GFP.
 ACCESSION   LentiCRISPRv2GFP_sg_Ren_55
 VERSION     LentiCRISPRv2GFP_sg_Ren_55
@@ -18,7 +18,8 @@ REFERENCE   1  (bases 1 to 13131)
 REFERENCE   2  (bases 1 to 13131)
   AUTHORS   .
   TITLE     Direct Submission
-  JOURNAL   Exported Jun 21, 2026 from SnapGene 8.2.2 https://www.snapgene.com
+  JOURNAL   Exported Sep 4, 2026 from SnapGene Server 8.0.1
+            https://www.snapgene.com
 COMMENT     SGRef: number: 1; type: "Journal Article"; journalName: "Cancer Res.
             2017 Feb 15. pii: canres.2159.2016. doi:
             10.1158/0008-5472.CAN-16-2159."
@@ -186,8 +187,6 @@ FEATURES             Location/Qualifiers
                      /label="sg_Ren_55"
                      /note="sgRNA sequence: GGATGATAACTGGTCCGCAG"
                      /gene="sg_Ren_55"
-     misc_feature    complement(7378)
-                     /label="Start"
      promoter        complement(7379..7627)
                      /label="U6 promoter"
                      /note="RNA polymerase III promoter for human U6 snRNA
@@ -195,8 +194,6 @@ FEATURES             Location/Qualifiers
      primer_bind     complement(7437..7456)
                      /label="LKO.1 5'"
                      /note="Human U6 promoter, forward primer"
-     primer_bind     complement(7607..7627)
-                     /label="HU6_seqF"
      primer_bind     complement(7607..7627)
                      /label="hU6-F"
                      /note="Human U6 promoter, forward primer"
