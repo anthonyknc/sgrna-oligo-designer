@@ -16,11 +16,12 @@ from shiny import App, reactive, render, req, ui
 from shiny import ui as sui
 
 from sgrna_oligo_designer import (
+    ENZYMES,
     add_cloning_oligos,
     build_idt_rows,
     build_plasmid_records,
     check_unique_ids,
-    read_fasta_sequence,
+    find_cloning_site,
     read_input,
     read_vector_gb,
     write_gb_files,
@@ -33,9 +34,27 @@ from sgrna_oligo_designer import (
 
 _VERSION      = "v1.0.0"
 _GITHUB_URL   = "https://github.com/anthonyknc/sgrna-oligo-designer"
-_EXAMPLE_XLSX = Path(__file__).parent / "example_inputs" / "example_sgRNA_seqs.xlsx"
-_EXAMPLE_GB   = Path(__file__).parent / "example_inputs" / "ipUSEPR.gb"
-_EXAMPLE_STUFFER = "GAGACGTGACCGTCTCT"
+_HERE         = Path(__file__).parent
+_EXAMPLE_XLSX = _HERE / "example_inputs" / "example_sgRNA_seqs.xlsx"
+
+# Vectors bundled with the app: key -> (label, GenBank file)
+_VECTORS = {
+    "ipUSEPR":          ("ipUSEPR",          _HERE / "vectors" / "ipUSEPR.gb"),
+    "lentiCRISPRv2":    ("lentiCRISPR v2",   _HERE / "vectors" / "lentiCRISPRv2.gb"),
+    "LentiCRISPRv2GFP": ("LentiCRISPRv2GFP", _HERE / "vectors" / "LentiCRISPRv2GFP.gb"),
+}
+_UPLOAD = "upload"
+
+_G_CHOICES = {
+    "always":    "Always add G (standard)",
+    "if_needed": "Only if the sgRNA doesn't start with G",
+    "never":     "Never (non-U6 promoter)",
+}
+_ORIENT_CHOICES = {
+    "auto":    "Auto-detect",
+    "forward": "Forward (as in the GenBank file)",
+    "reverse": "Reverse",
+}
 
 # ---------------------------------------------------------------------------
 # Assets
@@ -178,36 +197,38 @@ app_ui = sui.page_sidebar(
         sui.hr(),
 
         # --- Step 2 ---
-        sui.h6("Step 2 — GenBank output (optional)"),
-        sui.input_file(
-            "vector_file",
-            "Upload empty vector (.gb / .gbk)",
-            accept=[".gb", ".gbk"],
+        sui.h6("Step 2 — Vector and enzyme"),
+        sui.input_select(
+            "vector_choice",
+            "Vector",
+            {**{k: v[0] for k, v in _VECTORS.items()}, _UPLOAD: "Upload my own vector (.gb)…"},
         ),
-        sui.input_text(
-            "stuffer_text",
-            _label("Stuffer sequence",
-                   "The placeholder sequence in the vector to be replaced by the sgRNA 20-mer. "
-                   "Accepts a raw string or upload a FASTA file below."),
-            placeholder="e.g. GAGACGTGACCGTCTCT",
+        sui.panel_conditional(
+            f"input.vector_choice == '{_UPLOAD}'",
+            sui.input_file(
+                "vector_file",
+                "Upload empty vector (.gb / .gbk)",
+                accept=[".gb", ".gbk"],
+            ),
         ),
-        sui.input_file(
-            "stuffer_file",
-            "Or upload stuffer FASTA (.fa)",
-            accept=[".fa", ".fasta"],
+        sui.input_select(
+            "enzyme",
+            _label("Restriction enzyme",
+                   "The Type IIS enzyme used for cloning. The overhangs and the stuffer are "
+                   "worked out for you by cutting the vector in silico."),
+            list(ENZYMES),
         ),
-        sui.output_ui("stuffer_source"),
         sui.input_text(
             "vector_name",
             _label("Vector name (optional)",
-                   "Name prepended to each plasmid filename. "
-                   "Defaults to the vector filename stem (e.g. 'ipUSEPR')."),
-            placeholder="Default: vector filename stem",
+                   "Name prepended to each plasmid name in the GenBank file. "
+                   "Defaults to the vector name or the uploaded file's name."),
+            placeholder="Default: vector name",
         ),
         sui.input_text(
             "combined_name",
             _label("Combined .gb filename stem",
-                   "The output combined GenBank file will be named <stem>.gb."),
+                   "The combined GenBank file will be named <stem>.gb."),
             value="combined_plasmids",
         ),
 
@@ -229,25 +250,20 @@ app_ui = sui.page_sidebar(
                            "Column name in your input file containing unique sgRNA identifiers."),
                     value="sgRNA_id",
                 ),
-                sui.input_text(
-                    "sense_prefix",
-                    _label("Sense oligo prefix",
-                           "5' prefix added to the sense oligo. "
-                           "Default CACCG is for BsmBI-based vectors (ipUSEPR, lentiCRISPRv2)."),
-                    value="CACCG",
+                sui.input_radio_buttons(
+                    "g_mode",
+                    _label("5' G for U6 transcription",
+                           "The human U6 promoter starts transcription best with a G. "
+                           "'Always' matches the standard lentiCRISPR / Broad protocols."),
+                    _G_CHOICES,
+                    selected="always",
                 ),
-                sui.input_text(
-                    "antisense_prefix",
-                    _label("Antisense oligo prefix",
-                           "5' prefix added to the antisense oligo."),
-                    value="AAAC",
-                ),
-                sui.input_text(
-                    "antisense_suffix",
-                    _label("Antisense oligo suffix",
-                           "3' suffix added to the antisense oligo. "
-                           "The 'C' complements the extra G in the sense prefix."),
-                    value="C",
+                sui.input_select(
+                    "orientation",
+                    _label("sgRNA orientation in the vector",
+                           "Which strand of the GenBank file the sgRNA is transcribed from. "
+                           "Auto-detect looks for the start of the Cas9 scaffold (GTTT)."),
+                    _ORIENT_CHOICES,
                 ),
             ),
             open=False,
@@ -287,8 +303,13 @@ app_ui = sui.page_sidebar(
     sui.tags.style(_BUSY_CSS),
 
     # --- Main panel ---
+    sui.h4("Cloning site"),
+    sui.output_ui("site_info"),
+    sui.output_ui("stale_notice"),
+
     sui.h4("Summary"),
     sui.output_text("summary"),
+    sui.output_ui("warnings_ui"),
 
     sui.hr(),
     sui.h4("IDT order form preview"),
@@ -337,6 +358,36 @@ def server(input, output, session):
     def _clear_example():
         _use_example.set(False)
 
+    # --- Stale results: any setting change after a run invalidates the shown results ---
+
+    _ran   = reactive.value(False)
+    _stale = reactive.value(False)
+
+    @reactive.effect
+    @reactive.event(input.run_btn, input.example_btn, ignore_init=True)
+    def _mark_fresh():
+        _ran.set(True)
+        _stale.set(False)
+
+    @reactive.effect
+    @reactive.event(
+        input.vector_choice, input.vector_file, input.enzyme, input.orientation,
+        input.g_mode, input.seq_col, input.id_col, input.sgrna_file,
+        ignore_init=True,
+    )
+    def _mark_stale():
+        if _ran():
+            _stale.set(True)
+
+    @output
+    @render.ui
+    def stale_notice():
+        if _stale():
+            return sui.tags.div(
+                "Settings changed since the last run. Click Run to update the results.",
+                class_="alert alert-info", role="alert",
+            )
+
     # --- Dark mode ---
 
     _dark = reactive.value(False)
@@ -351,28 +402,51 @@ def server(input, output, session):
                 "set-theme", "dark" if new_state else "light"
             )
 
-    # --- Stuffer source indicator ---
+    # --- Vector and cloning site (live: updates as soon as the selection changes) ---
+
+    @reactive.calc
+    def vector_record():
+        if input.vector_choice() == _UPLOAD:
+            req(input.vector_file())
+            return read_vector_gb(Path(input.vector_file()[0]["datapath"]))
+        return read_vector_gb(_VECTORS[input.vector_choice()][1])
+
+    @reactive.calc
+    def vector_label() -> str:
+        if input.vector_name().strip():
+            return input.vector_name().strip()
+        if input.vector_choice() == _UPLOAD:
+            return Path(input.vector_file()[0]["name"]).stem
+        return input.vector_choice()
+
+    @reactive.calc
+    def cloning_site():
+        return find_cloning_site(vector_record(), input.enzyme(), input.orientation())
 
     @output
     @render.ui
-    def stuffer_source():
-        if input.stuffer_file():
-            return sui.tags.small(
-                "✓ Using uploaded FASTA file",
-                style="color:#2ecc71; font-weight:500;",
+    def site_info():
+        try:
+            site = cloning_site()
+        except Exception as e:
+            if input.vector_choice() == _UPLOAD and not input.vector_file():
+                return sui.tags.p("Upload a vector GenBank file to see its cloning site.",
+                                  style="color:#6c757d;")
+            return sui.tags.div(str(e), class_="alert alert-danger", role="alert")
+        items = [
+            sui.tags.div(
+                sui.tags.strong(f"✓ {site.enzyme}"), f" cuts the vector at two sites. ",
+                f"Overhangs: ", sui.tags.code(site.left_overhang), " (5′) and ",
+                sui.tags.code(site.right_overhang), " (3′). ",
+                f"{site.removed_length} bp between the cuts are replaced by the sgRNA. "
+                f"Orientation: {site.orientation}.",
+                class_="alert alert-success", role="alert",
             )
-        elif input.stuffer_text().strip():
-            return sui.tags.small(
-                "✓ Using manually entered sequence",
-                style="color:#2ecc71; font-weight:500;",
-            )
-        else:
-            return sui.tags.small(
-                "⚠ No stuffer — GenBank output disabled",
-                style="color:#f39c12; font-weight:500;",
-            )
+        ]
+        items += [sui.tags.div(w, class_="alert alert-warning", role="alert") for w in site.warnings]
+        return sui.TagList(*items)
 
-    # --- Reactive calculations ---
+    # --- Reactive calculations (run on Run / example clicks) ---
 
     @reactive.calc
     @reactive.event(input.run_btn, input.example_btn)
@@ -385,11 +459,10 @@ def server(input, output, session):
         check_unique_ids(rows, id_col=input.id_col())
         return add_cloning_oligos(
             rows,
+            cloning_site(),
             seq_col=input.seq_col(),
             id_col=input.id_col(),
-            top_prefix=input.sense_prefix(),
-            bot_prefix=input.antisense_prefix(),
-            bot_suffix=input.antisense_suffix(),
+            g_mode=input.g_mode(),
         )
 
     @reactive.calc
@@ -400,26 +473,16 @@ def server(input, output, session):
     @reactive.calc
     @reactive.event(input.run_btn, input.example_btn)
     def plasmid_records():
-        if _use_example():
-            vector_record = read_vector_gb(_EXAMPLE_GB)
-            stuffer_seq   = _EXAMPLE_STUFFER
-        else:
-            req(input.vector_file())
-            vector_info  = input.vector_file()[0]
-            vector_record = read_vector_gb(Path(vector_info["datapath"]))
-            stuffer_seq  = (
-                read_fasta_sequence(Path(input.stuffer_file()[0]["datapath"]))
-                if input.stuffer_file()
-                else "".join(input.stuffer_text().split())
-            )
-            req(stuffer_seq)
         return build_plasmid_records(
             processed_rows(),
-            vector_record,
-            stuffer_seq=stuffer_seq,
+            vector_record(),
+            cloning_site(),
             seq_col=input.seq_col(),
             id_col=input.id_col(),
         )
+
+    def _all_warnings() -> list[str]:
+        return [w for r in processed_rows() for w in r["warnings"]]
 
     # --- Notification on completion ---
 
@@ -427,36 +490,48 @@ def server(input, output, session):
     @reactive.event(input.run_btn, input.example_btn)
     def _notify():
         try:
-            rows = processed_rows()
-            n    = len(rows)
+            n     = len(processed_rows())
+            warns = _all_warnings()
             ui.notification_show(
-                f"✓ Processed {n} sgRNA sequences → {n * 2} oligos",
-                type="message",
-                duration=3,
+                f"✓ Processed {n} sgRNA sequences → {n * 2} oligos"
+                + (f" ({len(warns)} warning(s), see below)" if warns else ""),
+                type="warning" if warns else "message",
+                duration=4,
             )
         except Exception as e:
-            ui.notification_show(str(e), type="error", duration=5)
+            ui.notification_show(str(e), type="error", duration=8)
 
     # --- Outputs ---
 
     @output
     @render.text
     def summary():
+        req(not _stale())
         req(processed_rows())
         n = len(processed_rows())
-        try:
-            gb_note = " | GenBank file ready" if plasmid_records() else ""
-        except Exception:
-            gb_note = ""
         return (
             f"Processed {n} sgRNA sequences "
-            f"→ {n * 2} oligos ({n} sense + {n} antisense)"
-            f"{gb_note}"
+            f"→ {n * 2} oligos ({n} sense + {n} antisense) | GenBank file ready"
+        )
+
+    @output
+    @render.ui
+    def warnings_ui():
+        req(not _stale())
+        req(processed_rows())
+        warns = _all_warnings()
+        if not warns:
+            return None
+        return sui.tags.div(
+            sui.tags.strong(f"{len(warns)} warning(s)"),
+            sui.tags.ul(*[sui.tags.li(w) for w in warns]),
+            class_="alert alert-warning", role="alert",
         )
 
     @output
     @render.table
     def idt_table():
+        req(not _stale())
         req(idt_rows())
         return pd.DataFrame(idt_rows())
 
@@ -472,6 +547,7 @@ def server(input, output, session):
         )
     )
     def download_idt():
+        req(not _stale())
         req(idt_rows())
         with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
             tmp_path = Path(tmp.name)
@@ -485,12 +561,9 @@ def server(input, output, session):
         filename=lambda: f"{input.combined_name() or 'combined_plasmids'}.gb"
     )
     def download_gb():
+        req(not _stale())
         req(plasmid_records())
-        vector_name  = (
-            "ipUSEPR"
-            if _use_example()
-            else input.vector_name() or Path(input.vector_file()[0]["name"]).stem
-        )
+        vector_name  = vector_label()
         combined_stem = input.combined_name() or "combined_plasmids"
         with tempfile.TemporaryDirectory() as tmp_dir:
             write_gb_files(

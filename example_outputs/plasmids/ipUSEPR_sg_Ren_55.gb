@@ -11,10 +11,10 @@ REFERENCE   1  (bases 1 to 7877)
   TITLE     Direct Submission
   JOURNAL   Exported Jun 21, 2026 from SnapGene 8.2.2 https://www.snapgene.com
 FEATURES             Location/Qualifiers
-     source          1..7877
+     source          1..7880
                      /mol_type="other DNA"
                      /organism="synthetic DNA construct"
-     source          join(5283..7877,1..5282)
+     source          join(5286..7880,1..5285)
                      /mol_type="other DNA"
                      /organism="synthetic DNA construct"
      promoter        60..308

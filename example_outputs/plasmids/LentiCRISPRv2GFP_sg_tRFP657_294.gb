@@ -24,7 +24,7 @@ COMMENT     SGRef: number: 1; type: "Journal Article"; journalName: "Cancer Res.
             10.1158/0008-5472.CAN-16-2159."
             Sequence Label: LentiCRISPRv2GFP
 FEATURES             Location/Qualifiers
-     source          1..13131
+     source          1..13136
                      /mol_type="other DNA"
                      /organism="synthetic DNA construct"
      promoter        complement(41..370)

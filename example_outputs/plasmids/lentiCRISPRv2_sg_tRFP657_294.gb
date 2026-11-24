@@ -11,7 +11,7 @@ REFERENCE   1  (bases 1 to 14873)
   TITLE     Direct Submission
   JOURNAL   Exported Jun 21, 2026 from SnapGene 8.2.2 https://www.snapgene.com
 FEATURES             Location/Qualifiers
-     source          1..14873
+     source          1..13013
                      /mol_type="other DNA"
                      /organism="synthetic DNA construct"
      LTR             828..1016

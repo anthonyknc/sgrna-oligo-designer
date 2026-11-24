@@ -1,37 +1,59 @@
 """
 sgrna_oligo_designer.py
 ------------------------
-Core logic for the sgRNA Oligo Designer web app (see app.py): generates annealing
-oligo pairs for sgRNA cloning, builds IDT bulk-order rows, and produces annotated
-full-plasmid GenBank records for sequencing verification.
+Core logic for the sgRNA Oligo Designer web app (see app.py).
+
+The user picks a vector and a Type IIS restriction enzyme. The vector is then
+digested *in silico*: the two recognition sites are located, the cut positions
+and the 4-nt overhangs are read off the vector, and the annealing oligos and the
+final plasmid are derived from those real cut ends. Nothing about the overhangs
+or the stuffer has to be typed in.
+
+Worked example (ipUSEPR, BsmBI)::
+
+    ...CACC G GAGACGTGACCGTCTCT GTTT AAGAGC...      vector
+       ^^^^                     ^^^^
+       left overhang            right overhang       (read from the BsmBI cuts)
+
+    sense     5'-CACC + [G] + sgRNA-3'               overhang + core
+    antisense 5'-rc(core + GTTT)-3' = AAAC + rc(sgRNA) + C
 
 This module has no command-line interface; the Shiny app is the only entry point.
-
-Default parameters target BsmBI / U6 vectors such as ipUSEPR:
-  - Sense oligo    : 5'-CACCG-{sgRNA_seq}-3'
-  - Antisense oligo: 5'-AAAC-{rc(sgRNA_seq)}C-3'
 """
 
 import copy
 import csv
-import sys
 from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 
 
 # ---------------------------------------------------------------------------
-# IDT template constants (matches IDT bulk upload spec exactly)
+# Constants
 # ---------------------------------------------------------------------------
 
+# IDT bulk upload template (matches the IDT spec exactly)
 IDT_COLUMNS    = ["Name", "Sequence", "Scale", "Purification"]
 IDT_SCALE      = "25nm"
 IDT_PURIF      = "STD"
 IDT_COL_WIDTHS = {"A": 12.54, "B": 41.54, "C": 10.18, "D": 18.82}
 
+# Type IIS enzymes offered in the app. BsmBI and Esp3I are isoschizomers.
+# Cut geometry is taken from Bio.Restriction, so adding an enzyme here is enough.
+ENZYMES = ("BsmBI", "Esp3I", "BsaI", "BbsI")
 
-# ---------------------------------------------------------------------------
-# Core logic — oligo design
-# ---------------------------------------------------------------------------
+# How the 5' G required by the human U6 promoter is added to the spacer:
+#   always    - always prepend G (standard Zhang-lab / Broad convention)
+#   if_needed - prepend G only when the spacer does not already start with G
+#   never     - never prepend G (non-U6 promoters)
+G_MODES = ("always", "if_needed", "never")
+
+# Which way the sgRNA is transcribed relative to the GenBank file.
+ORIENTATIONS = ("auto", "forward", "reverse")
+
+# The first four bases of the SpCas9 scaffold. The right-hand overhang equals
+# this in essentially every SpCas9 vector, which lets us detect orientation.
+SCAFFOLD_START = "GTTT"
 
 _COMPLEMENT = str.maketrans("ACGTacgt", "TGCAtgca")
 
@@ -41,67 +63,303 @@ def reverse_complement(seq: str) -> str:
     return seq.translate(_COMPLEMENT)[::-1]
 
 
-def add_cloning_oligos(
-    rows: list[dict],
-    seq_col: str = "sgRNA_seq",
-    id_col: str  = "sgRNA_id",
-    top_prefix: str = "CACCG",
-    bot_prefix: str = "AAAC",
-    bot_suffix: str = "C",
-) -> list[dict]:
+# ---------------------------------------------------------------------------
+# Restriction enzymes and in-silico digestion
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class Enzyme:
+    """Cut geometry of a Type IIS enzyme that leaves a 5' overhang."""
+    name: str
+    site: str           # recognition sequence, top strand, ACGT only
+    cut_offset: int     # top-strand cut, measured from the start of the site
+    overhang_len: int   # length of the 5' overhang
+
+
+def get_enzyme(name: str) -> Enzyme:
+    """Look up an enzyme from ``ENZYMES`` and return its cut geometry."""
+    if name not in ENZYMES:
+        raise ValueError(f"Unsupported enzyme '{name}'. Choose one of: {', '.join(ENZYMES)}.")
+    from Bio import Restriction
+
+    enz  = getattr(Restriction, name)
+    site = str(enz.site).upper()
+    if (set(site) - set("ACGT") or enz.is_palindromic() or not enz.is_5overhang()
+            or enz.fst5 is None or enz.fst5 < len(site)):
+        raise ValueError(f"{name} is not a supported Type IIS enzyme.")
+    return Enzyme(name=name, site=site, cut_offset=enz.fst5, overhang_len=-enz.ovhg)
+
+
+def _find_sites(seq: str, enzyme: Enzyme) -> list[tuple[int, int]]:
     """
-    Validate, clean, and add 'oligo_sense' / 'oligo_antisense' keys to each row.
+    Find every recognition site on a circular sequence, on both strands.
 
-    Each sgRNA sequence is passed through :func:`_validate_sgrna_seq` which:
-    - Removes all whitespace (including internal spaces from copy-paste)
-    - Uppercases the sequence
-    - Validates length (warns if ≠ 20 nt) and character set (ACGT only)
-    - Warns if a PAM-like NGG suffix is detected on sequences longer than 20 nt
+    Returns sorted ``(start, strand)`` tuples. ``start`` is the 0-based index of
+    the first base of the match on the top strand; strand is +1 when the site
+    reads 5'->3' on the top strand and -1 when its reverse complement does.
+    """
+    n, site_len = len(seq), len(enzyme.site)
+    extended    = seq + seq[:site_len - 1]          # catch sites spanning the origin
+    hits = []
+    for strand, pattern in ((+1, enzyme.site), (-1, reverse_complement(enzyme.site))):
+        pos = 0
+        while (i := extended.find(pattern, pos)) != -1 and i < n:
+            hits.append((i, strand))
+            pos = i + 1
+    return sorted(hits)
 
-    The cleaned sequence is written back to ``row[seq_col]`` so downstream
-    functions (e.g. GenBank insertion) always use the sanitised version.
+
+def _overhang_start(start: int, strand: int, enzyme: Enzyme) -> int:
+    """Top-strand index where the overhang left by one site begins."""
+    if strand == +1:
+        return start + enzyme.cut_offset
+    return start + len(enzyme.site) - enzyme.cut_offset - enzyme.overhang_len
+
+
+@dataclass(frozen=True)
+class CloningSite:
+    """
+    Result of digesting a vector in silico. All coordinates are 0-based and refer
+    to the sequence in the *sense frame*, i.e. the vector read in the direction
+    the sgRNA is transcribed (the GenBank sequence itself if ``orientation`` is
+    'forward', its reverse complement if 'reverse').
+    """
+    enzyme:         str
+    enzyme_site:    str
+    orientation:    str     # 'forward' or 'reverse'
+    left_overhang:  str     # sense-frame sequence, 5' side of the insert
+    right_overhang: str     # sense-frame sequence, 3' side of the insert
+    replace_start:  int     # the bases [replace_start, replace_end) are replaced
+    replace_end:    int
+    left_context:   str     # backbone bases just outside each overhang, used to
+    right_context:  str     # detect enzyme sites created at the junctions
+    vector_length:  int
+    warnings:       tuple = ()
+
+    @property
+    def removed_length(self) -> int:
+        """Bases between the two overhangs that are replaced by the insert."""
+        return self.replace_end - self.replace_start
+
+
+def _locate(seq: str, enzyme: Enzyme) -> tuple[int, int]:
+    """
+    Digest ``seq`` in silico and return the start of the left and right overhang.
+
+    The vector must have exactly two sites. The piece removed is the shorter of
+    the two circular fragments (the stuffer); it must not span the origin.
+    Both layouts work: recognition sites inside the removed piece (lost on
+    cutting, e.g. lentiCRISPR) or left behind in the backbone.
+    """
+    n, k  = len(seq), enzyme.overhang_len
+    hits  = _find_sites(seq, enzyme)
+    if len(hits) != 2:
+        others = [e for e in ENZYMES if e != enzyme.name
+                  and len(_find_sites(seq, get_enzyme(e))) == 2]
+        hint = (f" This vector has exactly two sites for: {', '.join(others)}." if others
+                else f" None of the supported enzymes ({', '.join(ENZYMES)}) cuts it exactly twice.")
+        raise ValueError(
+            f"{enzyme.name} (site {enzyme.site}) was found {len(hits)} time(s) in this vector, "
+            f"but exactly 2 are needed, one on each side of the stuffer.{hint}"
+        )
+
+    x0, y0 = sorted(_overhang_start(i, s, enzyme) for i, s in hits)
+    origin_msg = (
+        f"The {enzyme.name} cloning site spans the origin (position 1) of the plasmid map. "
+        "Move the origin elsewhere in your plasmid editor, re-export the GenBank file, and try again."
+    )
+    if x0 < 0 or y0 + k > n:
+        raise ValueError(origin_msg)
+    if y0 < x0 + k:
+        raise ValueError(
+            f"The two {enzyme.name} cuts overlap, so no insert can be placed between them."
+        )
+    removed, other_piece = y0 - (x0 + k), n - (y0 + k - x0)
+    if removed > other_piece:
+        raise ValueError(origin_msg)      # the shorter piece is the one crossing the origin
+    return x0, y0
+
+
+def _site_from(seq: str, enzyme: Enzyme, x0: int, y0: int, orientation: str,
+               warnings: tuple = ()) -> CloningSite:
+    k, ctx = enzyme.overhang_len, len(enzyme.site) - 1
+    return CloningSite(
+        enzyme=enzyme.name,
+        enzyme_site=enzyme.site,
+        orientation=orientation,
+        left_overhang=seq[x0:x0 + k],
+        right_overhang=seq[y0:y0 + k],
+        replace_start=x0 + k,
+        replace_end=y0,
+        left_context=seq[max(0, x0 - ctx):x0],
+        right_context=seq[y0 + k:y0 + k + ctx],
+        vector_length=len(seq),
+        warnings=warnings,
+    )
+
+
+def find_cloning_site(vector_record, enzyme_name: str, orientation: str = "auto") -> CloningSite:
+    """
+    Digest the vector in silico with ``enzyme_name`` and describe the cloning site.
 
     Parameters
     ----------
-    rows : list[dict]
-        Input rows, each containing at minimum the sgRNA sequence column.
-    seq_col : str
-        Key holding the raw sgRNA sequences (20-mer, no PAM).
-    id_col : str
-        Key holding sgRNA identifiers; used in validation warnings / errors.
-    top_prefix : str
-        5' prefix appended to the sense strand.
-        ipUSEPR default: 'CACCG'  (CACC overhang + G transcriptional start)
-    bot_prefix : str
-        5' prefix appended to the antisense strand.
-        ipUSEPR default: 'AAAC'   (complement of GTTT BsmBI overhang)
-    bot_suffix : str
-        3' suffix appended to the antisense strand.
-        ipUSEPR default: 'C'      (complement of the extra G on top strand)
+    vector_record : Bio.SeqRecord.SeqRecord
+        Circular vector.
+    enzyme_name : str
+        One of :data:`ENZYMES`.
+    orientation : str
+        'forward', 'reverse', or 'auto'. Auto-detection looks for the SpCas9
+        scaffold start (GTTT) in the right-hand overhang on either strand and
+        falls back to 'forward' with a warning if neither matches.
 
-    Returns
-    -------
-    list[dict]
-        Same rows with 'oligo_sense' and 'oligo_antisense' added in-place
-        and sgRNA sequences cleaned.
+    Raises
+    ------
+    ValueError
+        If the vector is not circular, does not have exactly two sites for the
+        enzyme, or the cloning site spans the plasmid origin.
+    """
+    if orientation not in ORIENTATIONS:
+        raise ValueError(f"orientation must be one of {ORIENTATIONS}, got '{orientation}'.")
+    enzyme = get_enzyme(enzyme_name)
+    if vector_record.annotations.get("topology") != "circular":
+        raise ValueError(
+            "The vector GenBank file is not marked circular. Only circular plasmids are supported."
+        )
+
+    seq    = str(vector_record.seq).upper()
+    rc_seq = reverse_complement(seq)
+    fx0, fy0 = _locate(seq, enzyme)                  # raises with a helpful message
+
+    def forward(warnings=()):
+        return _site_from(seq, enzyme, fx0, fy0, "forward", warnings)
+
+    def reverse():
+        rx0, ry0 = _locate(rc_seq, enzyme)
+        return _site_from(rc_seq, enzyme, rx0, ry0, "reverse")
+
+    if orientation == "forward":
+        return forward()
+    if orientation == "reverse":
+        return reverse()
+
+    fwd = forward()
+    if fwd.right_overhang == SCAFFOLD_START:
+        return fwd
+    rev = reverse()
+    if rev.right_overhang == SCAFFOLD_START:
+        return rev
+    return forward((
+        f"Could not confirm the sgRNA orientation: expected the scaffold start {SCAFFOLD_START} "
+        f"in the right-hand overhang, found {fwd.right_overhang} (forward) / {rev.right_overhang} "
+        "(reverse). Assuming forward; set the orientation under Advanced options if this is wrong.",
+    ))
+
+
+# ---------------------------------------------------------------------------
+# Oligo design
+# ---------------------------------------------------------------------------
+
+def _validate_sgrna_seq(seq: str, sgrna_id: str) -> tuple[str, list[str]]:
+    """
+    Clean and validate a raw sgRNA sequence.
+
+    Removes all whitespace (including copy-paste artifacts) and uppercases.
+    Raises ValueError for empty or non-ACGT sequences. Returns the cleaned
+    sequence and a list of warnings for a length other than 20 nt and for a
+    likely PAM (trailing NGG on a sequence longer than 20 nt).
+    """
+    seq = "".join(seq.split()).upper()
+    warnings: list[str] = []
+
+    if not seq:
+        raise ValueError(
+            f"sgRNA '{sgrna_id}': sequence is empty. Check that the sequence column is correct."
+        )
+    invalid = set(seq) - set("ACGT")
+    if invalid:
+        raise ValueError(
+            f"sgRNA '{sgrna_id}': contains non-ACGT characters: {sorted(invalid)}. "
+            "Only standard ACGT bases are supported. Remove ambiguity codes, "
+            "spaces, or non-DNA characters."
+        )
+    if len(seq) != 20:
+        warnings.append(f"is {len(seq)} nt (expected 20 nt for SpCas9); proceeding anyway.")
+    if len(seq) > 20 and seq.endswith("GG"):
+        warnings.append(
+            f"is {len(seq)} nt and ends in '{seq[-3:]}', which looks like an NGG PAM "
+            "included by mistake. Trim to 20 nt if so."
+        )
+    return seq, warnings
+
+
+def build_insert_core(sgrna_seq: str, g_mode: str = "always") -> str:
+    """Return the spacer with the optional 5' G for U6 transcription added."""
+    if g_mode not in G_MODES:
+        raise ValueError(f"g_mode must be one of {G_MODES}, got '{g_mode}'.")
+    if g_mode == "always" or (g_mode == "if_needed" and not sgrna_seq.startswith("G")):
+        return "G" + sgrna_seq
+    return sgrna_seq
+
+
+def design_oligos(core: str, site: CloningSite) -> tuple[str, str]:
+    """
+    Build the sense and antisense oligos for one insert.
+
+    sense     = left overhang + core
+    antisense = reverse complement of (core + right overhang)
+    """
+    return (
+        site.left_overhang + core,
+        reverse_complement(core + site.right_overhang),
+    )
+
+
+def add_cloning_oligos(
+    rows: list[dict],
+    site: CloningSite,
+    seq_col: str = "sgRNA_seq",
+    id_col: str  = "sgRNA_id",
+    g_mode: str  = "always",
+) -> list[dict]:
+    """
+    Validate each sgRNA and add its cloning oligos, in place.
+
+    Adds to each row: ``insert_core``, ``oligo_sense``, ``oligo_antisense`` and
+    ``warnings`` (a list of human-readable strings, empty if all is well). The
+    cleaned sequence is written back to ``row[seq_col]``.
+
+    A warning is raised if the spacer (or a junction it creates) contains the
+    enzyme's recognition site, because the enzyme would cut the insert during
+    Golden Gate cloning.
     """
     if rows and seq_col not in rows[0]:
         raise ValueError(
             f"Column '{seq_col}' not found. Available: {list(rows[0].keys())}"
         )
+    site_pats = (site.enzyme_site, reverse_complement(site.enzyme_site))
+
     for i, row in enumerate(rows):
         sgrna_id = row.get(id_col, f"row {i + 1}")
-        seq      = _validate_sgrna_seq(row[seq_col], sgrna_id)
-        row[seq_col]           = seq   # write cleaned sequence back
-        row["oligo_sense"]     = top_prefix + seq
-        row["oligo_antisense"] = bot_prefix + reverse_complement(seq) + bot_suffix
+        seq, notes = _validate_sgrna_seq(row[seq_col], sgrna_id)
+        core = build_insert_core(seq, g_mode)
+
+        window = site.left_context + site.left_overhang + core + site.right_overhang + site.right_context
+        if any(p in window for p in site_pats):
+            notes.append(
+                f"contains a {site.enzyme} recognition site ({site.enzyme_site}); the enzyme "
+                "would cut this insert during cloning, so this guide will likely fail."
+            )
+
+        row[seq_col]           = seq
+        row["insert_core"]     = core
+        row["oligo_sense"], row["oligo_antisense"] = design_oligos(core, site)
+        row["warnings"]        = [f"sgRNA '{sgrna_id}' {n}" for n in notes]
     return rows
 
 
 def check_unique_ids(rows: list[dict], id_col: str = "sgRNA_id") -> None:
-    """
-    Raise ValueError if any sgRNA identifier is missing from the table or repeated.
-    """
+    """Raise ValueError if the ID column is missing or any sgRNA identifier is repeated."""
     if rows and id_col not in rows[0]:
         raise ValueError(
             f"Column '{id_col}' not found. Available: {list(rows[0].keys())}"
@@ -114,326 +372,124 @@ def check_unique_ids(rows: list[dict], id_col: str = "sgRNA_id") -> None:
         )
 
 
-def build_idt_rows(
-    rows: list[dict],
-    id_col: str = "sgRNA_id",
-) -> list[dict]:
+def build_idt_rows(rows: list[dict], id_col: str = "sgRNA_id") -> list[dict]:
     """
-    Reshape oligo rows into IDT bulk upload format.
-
-    Each sgRNA produces two interleaved rows (sense then antisense):
-        <sgRNA_id>_s      | oligo_sense     | 25nm | STD
-        <sgRNA_id>_a      | oligo_antisense | 25nm | STD
-
-    Parameters
-    ----------
-    rows : list[dict]
-        Rows with sgRNA_id, oligo_sense, and oligo_antisense keys.
-    id_col : str
-        Key holding the sgRNA identifiers.
-
-    Returns
-    -------
-    list[dict]
-        IDT-formatted rows with keys: Name, Sequence, Scale, Purification.
+    Reshape oligo rows into IDT bulk upload format. Each sgRNA produces two
+    interleaved rows:
+        <sgRNA_id>_s | oligo_sense     | 25nm | STD
+        <sgRNA_id>_a | oligo_antisense | 25nm | STD
     """
     idt_rows = []
     for r in rows:
-        idt_rows.append({
-            "Name":         f"{r[id_col]}_s",
-            "Sequence":     r["oligo_sense"],
-            "Scale":        IDT_SCALE,
-            "Purification": IDT_PURIF,
-        })
-        idt_rows.append({
-            "Name":         f"{r[id_col]}_a",
-            "Sequence":     r["oligo_antisense"],
-            "Scale":        IDT_SCALE,
-            "Purification": IDT_PURIF,
-        })
+        for suffix, key in (("s", "oligo_sense"), ("a", "oligo_antisense")):
+            idt_rows.append({
+                "Name":         f"{r[id_col]}_{suffix}",
+                "Sequence":     r[key],
+                "Scale":        IDT_SCALE,
+                "Purification": IDT_PURIF,
+            })
     return idt_rows
 
 
 # ---------------------------------------------------------------------------
-# Core logic — GenBank plasmid construction
+# GenBank plasmid construction
 # ---------------------------------------------------------------------------
 
 def read_vector_gb(path: Path):
-    """
-    Parse an empty vector GenBank file.
-
-    Parameters
-    ----------
-    path : Path
-        Path to the .gb / .gbk file.
-
-    Returns
-    -------
-    Bio.SeqRecord.SeqRecord
-        Parsed vector record with sequence and features.
-    """
+    """Parse a vector GenBank file into a Bio.SeqRecord.SeqRecord."""
     from Bio import SeqIO
     return SeqIO.read(path, "genbank")
 
 
-def _find_all(seq: str, pattern: str) -> list[int]:
-    """Return all 0-based start positions of pattern in seq."""
-    positions, start = [], 0
-    while (pos := seq.find(pattern, start)) != -1:
-        positions.append(pos)
-        start = pos + 1
-    return positions
-
-
-def _validate_stuffer_sequence(stuffer_seq: str) -> None:
+def _remap_feature(feature, r0: int, r1: int, new_len: int):
     """
-    Validate that the stuffer is non-empty and contains only ACGT bases.
+    Return a copy of ``feature`` remapped for replacing bases [r0, r1) with
+    ``new_len`` new bases, or None if the feature disappears.
 
-    Raises
-    ------
-    ValueError
-        If the stuffer is empty or contains non-ACGT characters.
+    - Entirely before the region: unchanged. Entirely after: shifted.
+    - Spanning the region: end shifted.
+    - Partly overlapping: clipped to the part that survives.
+    - Entirely inside: removed.
     """
-    if not stuffer_seq:
-        raise ValueError(
-            "Stuffer sequence is empty. "
-            "Check --stuffer provides a valid sequence or non-empty FASTA file."
-        )
-    invalid = set(stuffer_seq.upper()) - set("ACGT")
-    if invalid:
-        raise ValueError(
-            f"Stuffer contains non-ACGT characters: {sorted(invalid)}. "
-            "Only standard ACGT bases are supported. "
-            "Check your --stuffer input or FASTA file."
-        )
+    from Bio.SeqFeature import CompoundLocation, FeatureLocation
+
+    loc = feature.location
+    delta, parts = new_len - (r1 - r0), []
+    for p in loc.parts:
+        s, e = int(p.start), int(p.end)
+        if e <= r0:
+            parts.append(FeatureLocation(s, e, p.strand))
+        elif s >= r1:
+            parts.append(FeatureLocation(s + delta, e + delta, p.strand))
+        else:
+            ns = s if s < r0 else r0 + new_len
+            ne = e + delta if e > r1 else r0
+            if ne > ns:
+                parts.append(FeatureLocation(ns, ne, p.strand))
+    if not parts:
+        return None
+
+    new = copy.deepcopy(feature)
+    new.location = parts[0] if len(parts) == 1 else CompoundLocation(parts, operator=loc.operator)
+    return new
 
 
-def _validate_sgrna_seq(seq: str, sgrna_id: str) -> str:
+_RC_KEEP = dict(id=True, name=True, description=True, features=True,
+                annotations=True, letter_annotations=True, dbxrefs=True)
+
+
+def insert_sgrna(vector_record, site: CloningSite, core: str, sgrna_seq: str, sgrna_id: str):
     """
-    Clean and validate a raw sgRNA sequence.
+    Replace the region between the two overhangs with ``core`` and annotate the sgRNA.
 
-    Processing order:
-      1. Remove ALL whitespace (leading, trailing, and internal) with
-         ``"".join(seq.split())`` — handles spaces every 10 bases copied
-         from papers, Excel line breaks, and PDF paste artifacts.
-      2. Convert to uppercase.
-      3. Validate: non-empty, ACGT-only, exactly 20 nt (warn if not).
-      4. Warn if length > 20 and sequence ends in NGG — likely PAM
-         contamination where the user accidentally included the PAM.
-
-    Parameters
-    ----------
-    seq : str
-        Raw sgRNA sequence from the input table.
-    sgrna_id : str
-        sgRNA identifier used in error / warning messages.
-
-    Returns
-    -------
-    str
-        Cleaned, uppercase, whitespace-free sequence.
-
-    Raises
-    ------
-    ValueError
-        If the sequence is empty or contains non-ACGT characters.
-    """
-    seq = "".join(seq.split()).upper()
-
-    if not seq:
-        raise ValueError(
-            f"sgRNA '{sgrna_id}': sequence is empty. "
-            "Check that the sequence column is correct."
-        )
-
-    invalid = set(seq) - set("ACGT")
-    if invalid:
-        raise ValueError(
-            f"sgRNA '{sgrna_id}': contains non-ACGT characters: {sorted(invalid)}. "
-            "Only standard ACGT bases are supported. Remove ambiguity codes, "
-            "spaces, or non-DNA characters before running the script."
-        )
-
-    if len(seq) != 20:
-        print(
-            f"Warning: sgRNA '{sgrna_id}' is {len(seq)} nt "
-            f"(expected 20 nt for SpCas9). Proceeding anyway.",
-            file=sys.stderr,
-        )
-
-    # PAM contamination check — >20 nt ending in NGG
-    if len(seq) > 20 and seq[-1] == "G" and seq[-2] == "G":
-        print(
-            f"Warning: sgRNA '{sgrna_id}' is {len(seq)} nt and ends in "
-            f"'{seq[-3:]}' — this looks like an NGG PAM was accidentally "
-            "included in the sequence. Trim to 20 nt if so.",
-            file=sys.stderr,
-        )
-
-    return seq
-
-
-def validate_stuffer(vector_record, stuffer_seq: str) -> tuple[int, int]:
-    """
-    Locate the stuffer sequence in the vector across both strands.
-    Must appear exactly once across forward and reverse strands combined.
+    Features inside the replaced region are removed, features that overlap it
+    are clipped, and everything downstream is shifted. A new ``misc_feature``
+    labelled with ``sgrna_id`` marks the spacer (without the added 5' G).
 
     Parameters
     ----------
     vector_record : Bio.SeqRecord.SeqRecord
-        Parsed empty vector.
-    stuffer_seq : str
-        Placeholder sequence to find and replace (ACGT only).
-
-    Returns
-    -------
-    tuple[int, int]
-        (start_position, strand) where start_position is the 0-based position
-        on the forward strand, and strand is +1 (forward) or -1 (reverse).
-
-    Raises
-    ------
-    ValueError
-        If the stuffer is empty, non-ACGT, palindromic, absent, or non-unique.
-    """
-    _validate_stuffer_sequence(stuffer_seq)
-
-    fwd_seq     = str(vector_record.seq).upper()
-    stuffer_fwd = stuffer_seq.upper()
-    stuffer_rev = reverse_complement(stuffer_fwd)
-
-    # Palindrome check — rc equals itself, strand is indeterminate
-    if stuffer_fwd == stuffer_rev:
-        raise ValueError(
-            f"Stuffer sequence is palindromic (its reverse complement equals itself). "
-            "Strand cannot be determined. "
-            "Please provide a longer, asymmetric stuffer sequence."
-        )
-
-    fwd_hits = _find_all(fwd_seq, stuffer_fwd)
-    rev_hits = _find_all(fwd_seq, stuffer_rev)
-    total    = len(fwd_hits) + len(rev_hits)
-
-    if total == 0:
-        raise ValueError(
-            f"Stuffer not found on either strand of vector '{vector_record.name}'. "
-            "Check --stuffer matches the placeholder in your .gb file. "
-            "Note: stuffers that span the circular origin are not supported."
-        )
-    if total > 1:
-        raise ValueError(
-            f"Stuffer found {total} times across both strands "
-            f"(forward: {len(fwd_hits)}, reverse: {len(rev_hits)}). "
-            "Stuffer must be unique across both strands."
-        )
-
-    if fwd_hits:
-        return fwd_hits[0], +1
-    else:
-        return rev_hits[0], -1
-
-
-def _shift_feature(feature, delta: int):
-    """
-    Return a copy of a BioPython SeqFeature with coordinates shifted by delta.
-    Handles both simple FeatureLocation and CompoundLocation (e.g. join()).
-    """
-    from Bio.SeqFeature import FeatureLocation, CompoundLocation
-
-    new_feat = copy.deepcopy(feature)
-    loc      = feature.location
-
-    if isinstance(loc, CompoundLocation):
-        new_feat.location = CompoundLocation(
-            [FeatureLocation(p.start + delta, p.end + delta, p.strand)
-             for p in loc.parts],
-            operator=loc.operator,
-        )
-    else:
-        new_feat.location = FeatureLocation(
-            loc.start + delta, loc.end + delta, loc.strand
-        )
-    return new_feat
-
-
-def insert_sgrna(
-    vector_record,
-    stuffer_seq: str,
-    sgrna_seq: str,
-    sgrna_id: str,
-):
-    """
-    Replace the stuffer with the raw 20-mer sgRNA sequence and annotate it.
-
-    The stuffer is replaced in-place; all vector features downstream of the
-    insertion site are coordinate-shifted if stuffer and sgRNA lengths differ
-    (typically they are identical at 20 bp, so no shift is needed).
-
-    Features entirely within the stuffer region are removed before shifting —
-    this clears any stuffer annotation (misc_feature or similar) that was
-    present in the empty vector. A new misc_feature labelled with sgrna_id
-    is appended at the insertion site, and all features are sorted by start
-    position to follow GenBank convention.
-
-    Parameters
-    ----------
-    vector_record : Bio.SeqRecord.SeqRecord
-        Parsed empty vector (not modified in-place).
-    stuffer_seq : str
-        Placeholder sequence to replace.
+        The vector the ``site`` was computed from (not modified).
+    site : CloningSite
+        From :func:`find_cloning_site`.
+    core : str
+        Spacer with the optional 5' G, from :func:`build_insert_core`.
     sgrna_seq : str
-        Raw 20-mer sgRNA sequence (no PAM, no overhangs).
+        The cleaned 20-mer; must be the end of ``core``.
     sgrna_id : str
-        Identifier for the sgRNA; used as the feature label and record ID.
-
-    Returns
-    -------
-    Bio.SeqRecord.SeqRecord
-        New record with sgRNA inserted, stuffer annotation removed,
-        and features sorted by position.
+        Used for the feature label and the record ID.
     """
     from Bio.Seq import Seq
-    from Bio.SeqFeature import SeqFeature, FeatureLocation
+    from Bio.SeqFeature import FeatureLocation, SeqFeature
 
-    insert_start, strand = validate_stuffer(vector_record, stuffer_seq)
-    insert_end            = insert_start + len(stuffer_seq)
+    if not core.endswith(sgrna_seq):
+        raise ValueError("core must end with the sgRNA sequence.")
+    reverse = site.orientation == "reverse"
+    frame   = vector_record.reverse_complement(**_RC_KEEP) if reverse else vector_record
 
-    # Insert the sgRNA in the correct orientation relative to the stuffer strand
-    insert_seq = sgrna_seq.upper() if strand == +1 else reverse_complement(sgrna_seq.upper())
-    delta      = len(insert_seq) - len(stuffer_seq)
+    seq = str(frame.seq)
+    if len(seq) != site.vector_length:
+        raise ValueError("The cloning site was computed from a different vector.")
+    r0, r1 = site.replace_start, site.replace_end
+    g_len  = len(core) - len(sgrna_seq)
+    # If the vector already has the 5' G right after the left overhang (as ipUSEPR and
+    # lentiCRISPR do), keep that base and its annotations; replace only what follows.
+    if g_len and seq[r0:r0 + g_len].upper() == core[:g_len]:
+        r0 += g_len
+        new_part = core[g_len:]
+    else:
+        new_part = core
+    spacer_start = r0 if new_part == sgrna_seq else r0 + g_len
 
-    # Build new sequence
-    old_seq = str(vector_record.seq)
-    new_seq = old_seq[:insert_start] + insert_seq + old_seq[insert_end:]
-
-    # Deep copy record, update sequence and metadata
-    new_record             = copy.deepcopy(vector_record)
-    new_record.seq         = Seq(new_seq)
-    new_record.id          = sgrna_id
-    new_record.name        = sgrna_id[:16]   # LOCUS name field: max 16 chars
-    new_record.description = (
-        f"{sgrna_id} cloned into {vector_record.name.strip()}"
-    )
-
-    # Remove features entirely within the stuffer region —
-    # these annotate the placeholder sequence that has been replaced.
-    new_record.features = [
-        f for f in new_record.features
-        if not (int(f.location.start) >= insert_start
-                and int(f.location.end) <= insert_end)
+    record     = copy.deepcopy(frame)
+    record.seq = Seq(seq[:r0] + new_part + seq[r1:])
+    record.features = [
+        f for f in (_remap_feature(f, r0, r1, len(new_part)) for f in frame.features)
+        if f is not None
     ]
-
-    # Shift features downstream of the insertion site
-    if delta != 0:
-        new_record.features = [
-            _shift_feature(f, delta) if f.location.start >= insert_end else f
-            for f in new_record.features
-        ]
-
-    # Annotate the inserted sgRNA on the correct strand
-    new_record.features.append(
+    record.features.append(
         SeqFeature(
-            FeatureLocation(insert_start, insert_start + len(insert_seq), strand=strand),
+            FeatureLocation(spacer_start, spacer_start + len(sgrna_seq), strand=+1),
             type="misc_feature",
             qualifiers={
                 "label": [sgrna_id],
@@ -442,43 +498,29 @@ def insert_sgrna(
             },
         )
     )
+    if reverse:
+        record = record.reverse_complement(**_RC_KEEP)
 
-    # Sort features by start position (GenBank convention)
-    new_record.features.sort(key=lambda f: int(f.location.start))
-
-    return new_record
+    record.id          = sgrna_id
+    record.name        = sgrna_id[:16]   # LOCUS name field: max 16 chars
+    record.description = f"{sgrna_id} cloned into {vector_record.name.strip()}"
+    record.features.sort(key=lambda f: int(f.location.start))
+    return record
 
 
 def build_plasmid_records(
     rows: list[dict],
     vector_record,
-    stuffer_seq: str,
+    site: CloningSite,
     seq_col: str = "sgRNA_seq",
     id_col: str  = "sgRNA_id",
 ) -> list:
     """
-    Generate one annotated SeqRecord per sgRNA row.
-
-    Parameters
-    ----------
-    rows : list[dict]
-        Rows with sgRNA_id and sgRNA_seq keys.
-    vector_record : Bio.SeqRecord.SeqRecord
-        Parsed empty vector.
-    stuffer_seq : str
-        Placeholder sequence to replace in the vector.
-    seq_col : str
-        Key holding raw sgRNA sequences.
-    id_col : str
-        Key holding sgRNA identifiers.
-
-    Returns
-    -------
-    list[Bio.SeqRecord.SeqRecord]
-        One record per sgRNA with the stuffer replaced and feature annotated.
+    Generate one annotated SeqRecord per row. Rows must already have been
+    through :func:`add_cloning_oligos` (they carry ``insert_core``).
     """
     return [
-        insert_sgrna(vector_record, stuffer_seq, row[seq_col], row[id_col])
+        insert_sgrna(vector_record, site, row["insert_core"], row[seq_col], row[id_col])
         for row in rows
     ]
 
@@ -491,37 +533,21 @@ def write_gb_files(
     combined_stem: str = "combined_plasmids",
 ) -> None:
     """
-    Write GenBank files — one per sgRNA (default) or a single combined file.
+    Write GenBank files, one per sgRNA (default) or a single combined file.
 
-    Each record’s LOCUS name (record.name) and accession (record.id) are set to
-    '{vector_name}_{sgRNA_id}' so that SnapGene and Benchling display the full
-    construct name (e.g. 'ipUSEPR_sg_Luc_474') rather than just the bare sgRNA ID.
-
-    Parameters
-    ----------
-    records : list[Bio.SeqRecord.SeqRecord]
-        Annotated plasmid records to write.
-    output_dir : Path
-        Directory for output .gb files.
-    vector_name : str
-        Vector name prepended to each record name and output filename.
-        Produces: {vector_name}_{sgRNA_id}.gb
-    multi_gb : bool
-        If True, write all records into a single combined .gb file.
-    combined_stem : str
-        Filename stem for the combined file (used when multi_gb=True).
+    Each record's LOCUS name and accession are set to '{vector_name}_{sgRNA_id}'
+    so that SnapGene and Benchling display the full construct name
+    (e.g. 'ipUSEPR_sg_Luc_474').
     """
-    import copy
     from Bio import SeqIO
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
     def _named(record):
-        """Return a copy with vector_name prepended to id and name."""
         r             = copy.deepcopy(record)
         full_id       = f"{vector_name}_{record.id}"
         r.id          = full_id
-        r.name        = full_id   # LOCUS name shown by SnapGene / Benchling
+        r.name        = full_id
         r.description = f"{record.id} cloned into {vector_name}"
         return r
 
@@ -529,14 +555,11 @@ def write_gb_files(
         out_path = output_dir / f"{combined_stem}.gb"
         with open(out_path, "w") as fh:
             SeqIO.write([_named(r) for r in records], fh, "genbank")
-        print(f"Saved → {out_path}")
     else:
         for record in records:
-            named    = _named(record)
-            out_path = output_dir / f"{named.id}.gb"
-            with open(out_path, "w") as fh:
+            named = _named(record)
+            with open(output_dir / f"{named.id}.gb", "w") as fh:
                 SeqIO.write([named], fh, "genbank")
-            print(f"Saved → {out_path}")
 
 
 # ---------------------------------------------------------------------------
@@ -548,27 +571,22 @@ def read_input(path: Path) -> list[dict]:
     Read an input spreadsheet or delimited file into a list of row dicts.
     Supports .xlsx / .xlsm / .xls (via openpyxl), .csv, and .tsv.
 
-    Completely empty rows (all values empty or whitespace-only) are filtered
-    out — this prevents confusing errors from trailing blank rows that
-    openpyxl and csv.DictReader both return for some files.
+    Completely empty rows (all values empty or whitespace-only) are dropped;
+    trailing blank rows are common in files saved from Excel.
     """
     suffix = path.suffix.lower()
 
     def _non_empty(rows: list[dict]) -> list[dict]:
-        """Drop rows where every value is empty or whitespace-only."""
-        return [
-            row for row in rows
-            if any(str(v).strip() for v in row.values())
-        ]
+        return [row for row in rows if any(str(v).strip() for v in row.values())]
 
     if suffix in {".xlsx", ".xlsm", ".xls"}:
         import openpyxl
-        wb       = openpyxl.load_workbook(path, read_only=True, data_only=True)
-        ws       = wb.active
+        wb        = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        ws        = wb.active
         rows_iter = ws.iter_rows(values_only=True)
-        headers  = [str(h) for h in next(rows_iter)]
-        rows     = [dict(zip(headers, (str(v) if v is not None else "" for v in row)))
-                    for row in rows_iter]
+        headers   = [str(h) for h in next(rows_iter)]
+        rows      = [dict(zip(headers, (str(v) if v is not None else "" for v in row)))
+                     for row in rows_iter]
         wb.close()
         return _non_empty(rows)
 
@@ -600,49 +618,14 @@ def write_idt_excel(idt_rows: list[dict], path: Path) -> None:
 
     header_font = Font(name="Calibri", bold=True)
     for col_idx, col_name in enumerate(IDT_COLUMNS, start=1):
-        cell = ws.cell(row=1, column=col_idx, value=col_name)
-        cell.font = header_font
+        ws.cell(row=1, column=col_idx, value=col_name).font = header_font
 
     data_font = Font(name="Calibri")
     for row_idx, row in enumerate(idt_rows, start=2):
         for col_idx, col_name in enumerate(IDT_COLUMNS, start=1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=row[col_name])
-            cell.font = data_font
+            ws.cell(row=row_idx, column=col_idx, value=row[col_name]).font = data_font
 
     for col_letter, width in IDT_COL_WIDTHS.items():
         ws.column_dimensions[col_letter].width = width
 
     wb.save(path)
-    print(f"Saved → {path}")
-
-
-# ---------------------------------------------------------------------------
-# FASTA helper
-# ---------------------------------------------------------------------------
-
-def read_fasta_sequence(path: Path) -> str:
-    """
-    Read the first sequence from a FASTA file and return it as a plain string.
-    Header lines (starting with '>') and whitespace are stripped.
-
-    Parameters
-    ----------
-    path : Path
-        Path to the FASTA file.
-
-    Returns
-    -------
-    str
-        Concatenated sequence of the first FASTA record, whitespace removed.
-    """
-    seq_lines = []
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            if line.startswith(">"):
-                if seq_lines:
-                    break       # stop after first record
-                continue
-            seq_lines.append(line.strip())
-    if not seq_lines:
-        raise ValueError(f"No sequence found in FASTA file: {path}")
-    return "".join(seq_lines)

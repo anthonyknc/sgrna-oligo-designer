@@ -12,7 +12,7 @@ Given a list of sgRNA sequences, it generates:
 
 > 🌐 **https://anthonyknc.shinyapps.io/sgrna-oligo-designer**
 
-No installation or coding required. Upload your sgRNA table, provide your vector GenBank file and stuffer sequence, then download your IDT order form and annotated GenBank file directly in the browser. Click **⚡ Load example data** to try it with the ipUSEPR example first.
+No installation or coding required. Upload your sgRNA table, choose your vector and restriction enzyme, then download your IDT order form and annotated GenBank file directly in the browser. Click **⚡ Load example data** to try it with the ipUSEPR example first.
 
 ---
 
@@ -42,7 +42,7 @@ Additional columns (e.g. target gene, genomic coordinates, on-target score) are 
 
 See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use example files in all three formats.
 
-> **Note:** The default oligo design targets ***Sp*Cas9** sgRNAs using the ***Bsm*BI/Golden Gate** cloning system (e.g. ipUSEPR, lentiCRISPR v2, LentiCRISPRv2GFP, etc). For other cloning systems with different overhangs, change the oligo prefix/suffix fields under **Advanced options** as described in the [**Using with other vectors**](#using-with-other-vectors-and-cloning-systems) section below.
+> **Note:** The tool designs oligos for ***Sp*Cas9** sgRNAs cloned by Type IIS/Golden Gate digestion (*Bsm*BI, Esp3I, *Bsa*I or *Bbs*I). You never type overhangs: they are read from the vector, as explained in [**How the cloning is simulated**](#how-the-cloning-is-simulated).
 
 > **Tip:** The app automatically removes leading, trailing, and internal whitespace from sgRNA sequences and converts them to uppercase. Sequences copied from publications (which may include spaces every 10 bases) or pasted from PDFs are handled correctly.
 
@@ -51,16 +51,10 @@ See [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) for ready-to-use 
 ## Step 3 — Run the app
 
 1. Upload your sgRNA table (Step 1 in the sidebar).
-2. Optional, for plasmid maps: upload your empty vector (`.gb`) and give the stuffer sequence, either typed in or as a FASTA file.
-3. Click **Run**, check the preview, then download the IDT order form and the combined GenBank file.
+2. Pick your **vector** (ipUSEPR, lentiCRISPR v2, LentiCRISPRv2GFP, or upload your own `.gb`) and the **restriction enzyme** used to clone into it. The app immediately shows the cloning site it found: the two overhangs and how many bases are replaced.
+3. Click **Run**, check the preview and any warnings, then download the IDT order form and the combined GenBank file.
 
-Ready-to-use inputs for three vectors are in [`example_inputs/`](example_inputs/):
-
-| Vector | sgRNA table | Vector file | Stuffer |
-|---|---|---|---|
-| ipUSEPR | `example_sgRNA_seqs.xlsx` | `vector_seqs/ipUSEPR.gb` | `GAGACGTGACCGTCTCT` (paste directly) |
-| lentiCRISPR v2 ([Addgene #52961](https://www.addgene.org/52961/)) | `example_sgRNA_seqs.csv` | `vector_seqs/lentiCRISPRv2.gb` | `stuffer_seqs/lentiCRISPRv2_stuffer.fa` (1,880 bp) |
-| LentiCRISPRv2GFP ([Addgene #82416](https://www.addgene.org/82416/)) | `example_sgRNA_seqs.tsv` | `vector_seqs/LentiCRISPRv2GFP.gb` | `stuffer_seqs/LentiCRISPRv2GFP_stuffer.fa` |
+Ready-to-use sgRNA tables are in [`example_inputs/sgRNA_seqs/`](example_inputs/sgRNA_seqs/) in three formats, and the three vectors are bundled with the app (and in [`PyShinyApp/vectors/`](PyShinyApp/vectors/)). All three are *Bsm*BI vectors.
 
 The **ipUSEPR** (**i**mproved lentiviral **p**lasmid with **U**6-**s**gRNA-**E**F1a-**P**uroR-Tag**R**FP) vector was developed in our [lab](https://www.mayo.edu/research/core-resources/genetic-screening-engineering-core/overview) and is our most battle-tested vector
 (PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/),
@@ -95,7 +89,7 @@ Each sgRNA produces two oligos: a sense (`_s`) and antisense (`_a`) strand.
 sgRNA sequence was inserted correctly before submitting for Sanger or
 whole-plasmid sequencing. Each file contains all original vector annotations
 plus a new `misc_feature` labelled with the sgRNA ID at the insertion site.
-The stuffer placeholder annotation is automatically removed from the output.
+Annotations on the replaced stuffer are removed, and annotations that overlap it are trimmed.
 The construct name in each LOCUS line (e.g. `ipUSEPR_sg_Luc_474`) is
 `<vector name>_<sgRNA ID>`, so SnapGene and Benchling display the correct
 construct name when the file is imported.
@@ -121,7 +115,7 @@ generally better tolerated than those at the 3' PAM-proximal seed region
 ([Hsu et al., *Nat Biotechnol*, 2013](https://pubmed.ncbi.nlm.nih.gov/23873081/)),
 though tolerance is sequence-dependent.
 
-If your sgRNA sequence already starts with G, the extra G is still added by default,
+If your sgRNA sequence already starts with G, the extra G is still added by default (you can change this under **Advanced options**),
 resulting in a 21-nt sgRNA with a 5'-GG- start. This is the standard convention for
 *Bsm*BI-based lentiviral CRISPR vectors, as explicitly specified in the Zhang lab's
 official cloning protocol for lentiCRISPR v2 and lentiGuide-Puro
@@ -132,35 +126,24 @@ This is also the convention we follow in our lab.
 
 ---
 
-## Using with other vectors and cloning systems
+## How the cloning is simulated
 
-The default oligo design (`CACCG` / `AAAC` / `C`) is specific to *Bsm*BI/Golden
-Gate-based lentiviral vectors. The app accommodates **any** vector and cloning
-system through three fields under **⚙ Advanced options**:
+Instead of asking you for overhang sequences, the app digests your vector in silico:
 
-| Field | Default | Description |
-|---|---|---|
-| Sense oligo prefix | `CACCG` | 5' prefix added to the sense oligo |
-| Antisense oligo prefix | `AAAC` | 5' prefix added to the antisense oligo |
-| Antisense oligo suffix | `C` | 3' suffix added to the antisense oligo |
+1. It finds the enzyme's two recognition sites (on either strand) and works out where each one cuts. Type IIS enzymes cut outside their site: *Bsm*BI and *Bsa*I cut `N1/N5` downstream of the site, *Bbs*I cuts `N2/N6`.
+2. The 4-nt overhangs left on the vector at those cuts are the overhangs your oligos need.
+3. The stuffer is the shorter piece between the two cuts. It is replaced by the sgRNA, so you no longer supply a stuffer sequence.
+4. Oligos are built as `sense = left overhang + [G] + sgRNA` and `antisense = reverse complement of ([G] + sgRNA + right overhang)`.
 
-These overhangs are determined by the Type IIS restriction enzyme used to
-linearize your vector. To find the correct values, check the cloning protocol
-on the vector's Addgene page or its accompanying publication.
+For ipUSEPR with *Bsm*BI the overhangs come out as `CACC` and `GTTT`, which reproduces the familiar `CACCG-sgRNA` / `AAAC-rc(sgRNA)-C` oligos.
 
-**A note on other popular vectors:** the Broad Institute **pXPR** /
-**lentiGuide-Puro** series (*Bsm*BI-based) all coincidentally use the same
-`CACCG` / `AAAC` / `C` overhangs as our defaults — so no customization is
-needed for those vectors.
+Both common vector layouts work: recognition sites inside the stuffer, lost on cutting (lentiCRISPR, ipUSEPR), and sites that stay in the backbone. The sgRNA orientation (which strand of the GenBank file is transcribed) is auto-detected from the Cas9 scaffold start (`GTTT`), and you can override it under **⚙ Advanced options**.
 
-For a vector that uses different overhangs, simply change the fields.
-For example (hypothetical), if your vector's cloning site generates `ACCG` / `AAAC`
-overhangs with no 3' suffix (the G for U6 transcription is already embedded in the
-`ACCG` overhang, so no complementary `C` is needed on the antisense oligo), set the
-sense prefix to `ACCG`, the antisense prefix to `AAAC`, and leave the suffix empty.
+The app checks the following and tells you if one fails:
+- The vector must be circular and have **exactly two** sites for the chosen enzyme. If you pick the wrong enzyme, the message lists the enzymes that do cut your vector exactly twice.
+- Each sgRNA is checked for the enzyme's recognition site, on either strand and including sites created at the junctions. The enzyme would cut such a guide during cloning.
 
-The same **Advanced options** panel lets you set the column names for the sgRNA
-sequences and IDs if your input file does not use `sgRNA_seq` / `sgRNA_id`.
+**Supported enzymes:** *Bsm*BI, Esp3I, *Bsa*I and *Bbs*I. (*Bsa*I does not cut the bundled vectors exactly twice, so choose it only with a *Bsa*I vector of your own.)
 
 ---
 
@@ -169,43 +152,48 @@ sequences and IDs if your input file does not use `sgRNA_seq` / `sgRNA_id`.
 | Sidebar field | Purpose |
 |---|---|
 | Upload sgRNA table | `.xlsx`, `.csv` or `.tsv` with the sgRNA IDs and sequences |
-| Upload empty vector | Vector GenBank file (`.gb` / `.gbk`); needed only for plasmid maps |
-| Stuffer sequence / FASTA | Placeholder in the vector replaced by the sgRNA. A raw sequence or a FASTA upload (the FASTA wins if both are given) |
-| Vector name | Prepended to each plasmid name and LOCUS name. Default: the vector filename stem (e.g. `ipUSEPR`) |
+| Vector | A bundled vector, or upload your own circular GenBank file (`.gb` / `.gbk`) |
+| Restriction enzyme | *Bsm*BI, Esp3I, *Bsa*I or *Bbs*I; sets the cuts, overhangs and stuffer |
+| Vector name | Prepended to each plasmid name and LOCUS name. Default: the vector name or uploaded file name |
 | Combined .gb filename stem | Name of the downloaded GenBank file. Default: `combined_plasmids` |
-| Advanced options | Column names and the oligo prefix/suffix described above |
+| Advanced options | Column names; whether to add the 5' G (always / only if the sgRNA doesn't start with G / never); sgRNA orientation |
 
 ---
 
 ## Supported vectors
 
-The app works with any sgRNA cloning vector as long as you provide its
-GenBank file, the stuffer sequence, and the correct cloning overhangs. The
-following vectors have been tested:
+The app works with any circular sgRNA cloning vector that has exactly two sites for one of the supported enzymes. The following are tested (the example outputs in [`example_outputs/`](example_outputs/) are generated from them):
 
-| Vector | Addgene / Reference | Stuffer input | Custom overhangs needed? |
+| Vector | Addgene / Reference | Enzyme | sgRNA orientation in the file |
 |---|---|---|---|
-| ipUSEPR | PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/), [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/), [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/), [37075745](https://pubmed.ncbi.nlm.nih.gov/37075745/), [38394203](https://pubmed.ncbi.nlm.nih.gov/38394203/), [38316881](https://pubmed.ncbi.nlm.nih.gov/38316881/), [39716856](https://pubmed.ncbi.nlm.nih.gov/39716856/) | Short string | No (defaults) |
-| lentiCRISPR v2 | [Addgene #52961](https://www.addgene.org/52961/) | FASTA file | No (defaults) |
-| LentiCRISPRv2GFP | [Addgene #82416](https://www.addgene.org/82416/) | FASTA file | No (defaults) |
+| ipUSEPR | PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/), [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/), [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/), [37075745](https://pubmed.ncbi.nlm.nih.gov/37075745/), [38394203](https://pubmed.ncbi.nlm.nih.gov/38394203/), [38316881](https://pubmed.ncbi.nlm.nih.gov/38316881/), [39716856](https://pubmed.ncbi.nlm.nih.gov/39716856/) | *Bsm*BI | forward |
+| lentiCRISPR v2 | [Addgene #52961](https://www.addgene.org/52961/) | *Bsm*BI | forward |
+| LentiCRISPRv2GFP | [Addgene #82416](https://www.addgene.org/82416/) | *Bsm*BI | reverse |
 
 ---
 
 ## Troubleshooting
 
-**"Stuffer not found on either strand"**
-The stuffer sequence does not match anything in your vector file. Double-check
-that the sequence is correct. If your stuffer is provided as a FASTA file,
-verify the uploaded file. Note: stuffers that span the circular origin of a plasmid
-are not currently supported.
+**"BsmBI (site CGTCTC) was found N time(s) in this vector, but exactly 2 are needed"**
+The enzyme you chose does not cut your vector exactly twice. The message lists the
+supported enzymes that do. If none do, your vector may use a different enzyme or have
+extra internal sites; domesticate the extra sites or contact us.
 
-**"Stuffer found N times"**
-The stuffer sequence is not unique in your vector. Provide a longer or more
-specific stuffer sequence.
+**"The vector GenBank file is not marked circular"**
+Only circular plasmids are supported. Export the map as circular from SnapGene or Benchling.
 
-**"Stuffer sequence is palindromic"**
-The stuffer's reverse complement is identical to itself, so the app cannot
-determine which strand it belongs to. Use a longer, asymmetric stuffer sequence.
+**"The cloning site spans the origin"**
+The stuffer crosses position 1 of the map. Move the origin elsewhere in your plasmid editor,
+re-export the GenBank file, and try again.
+
+**"Could not confirm the sgRNA orientation"**
+The right-hand overhang is not the start of the Cas9 scaffold (`GTTT`) on either strand, so
+the app assumed the sgRNA reads forward. Check the overhangs shown under **Cloning site**
+and set the orientation under **⚙ Advanced options** if needed.
+
+**"sgRNA ... contains a BsmBI recognition site"**
+The enzyme would cut inside this guide during cloning, so it will likely fail. Choose a
+different guide.
 
 **"Duplicate sgRNA IDs found"**
 Two or more rows in your input file share the same `sgRNA_id`. Every sgRNA must
