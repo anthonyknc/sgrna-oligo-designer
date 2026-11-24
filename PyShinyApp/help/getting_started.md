@@ -32,9 +32,9 @@ See [`example_inputs/sgRNA_seqs/`](https://github.com/anthonyknc/sgrna-oligo-des
 
 ## Step 3 — Run the app
 
-1. Upload your sgRNA table (Step 1 in the sidebar).
+1. Upload your sgRNA table (section 1 in the sidebar).
 2. Pick your **vector** (ipUSEPR, lentiCRISPR v2, LentiCRISPRv2GFP, or upload your own `.gb`) and the **restriction enzyme** used to clone into it. The app immediately shows the cloning site it found: the two overhangs and how many bases are replaced.
-3. Click **Run**, check the preview and any warnings, then download the IDT order form and the combined GenBank file.
+3. Click **Design oligos**, check the table and any warnings, then download the IDT order form and the GenBank file (or **Everything (.zip)**).
 
 Ready-to-use sgRNA tables are in [`example_inputs/sgRNA_seqs/`](https://github.com/anthonyknc/sgrna-oligo-designer/tree/main/example_inputs/sgRNA_seqs) in three formats, and the three vectors are bundled with the app (and in [`PyShinyApp/vectors/`](https://github.com/anthonyknc/sgrna-oligo-designer/tree/main/PyShinyApp/vectors)). All three are *Bsm*BI vectors.
 

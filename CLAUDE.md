@@ -73,7 +73,7 @@ Things that span functions and are easy to miss:
   runs as a formula) and file/vector names through `sanitize_name` (cannot leave the output dir).
   `write_idt_excel` also forces string cells. Keep any new user-controlled name on this path.
 - The app's `cloning_site` calc is live (updates on vector/enzyme change and shows errors inline);
-  results calcs fire only on Run/example clicks and are hidden as stale when a setting changes.
+  results calcs fire only on Design oligos/example clicks and are hidden as stale when a setting changes.
 - Golden tests compare GenBank output byte-for-byte (including the LOCUS line), so any change to
   record naming, feature order or qualifiers shows up as a golden diff. The `source` feature in the
   goldens spans the whole new plasmid (an intentional correction of the old stuffer-based output).
