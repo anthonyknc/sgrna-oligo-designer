@@ -14,7 +14,7 @@ from Bio.SeqRecord import SeqRecord
 
 import sgrna_oligo_designer as sod
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parent.parent / "PyShinyApp" / "vectors"
 SG = "GACCAGGATGGGCACCACCC"          # the placeholder guide that ships in pMCB306
 
 

@@ -58,6 +58,16 @@ _VECTORS = {
     "ipUSEPR":          ("ipUSEPR",          _HERE / "vectors" / "ipUSEPR.gb"),
     "lentiCRISPRv2":    ("lentiCRISPR v2",   _HERE / "vectors" / "lentiCRISPRv2.gb"),
     "LentiCRISPRv2GFP": ("LentiCRISPRv2GFP", _HERE / "vectors" / "LentiCRISPRv2GFP.gb"),
+    "lentiGuide-Puro":  ("lentiGuide-Puro (Addgene 52963)", _HERE / "vectors" / "lentiGuide-Puro.gb"),
+    "pX330":            ("pX330 (Addgene 42230)", _HERE / "vectors" / "pX330.gb"),
+    "pU6-BbsI-CBh-Cas9-T2A-mCherry-H1":
+                        ("pU6-(BbsI)_CBh-Cas9-T2A-mCherry-H1 (Addgene 64217)",
+                         _HERE / "vectors" / "pU6-BbsI_CBh-Cas9-T2A-mCherry-H1.gb"),
+    "phH1-gRNA":        ("phH1-gRNA, H1 promoter (Addgene 53186)", _HERE / "vectors" / "phH1-gRNA.gb"),
+    "pU6-sgRNA-EF1a-puro-T2A-BFP":
+                        ("pU6-sgRNA EF1Alpha-puro-T2A-BFP, BstXI + BlpI (Addgene 60955)",
+                         _HERE / "vectors" / "pU6-sgRNA_EF1Alpha-puro-T2A-BFP.gb"),
+    "pMCB306":          ("pMCB306, mouse U6, BstXI + BlpI (Addgene 89360)", _HERE / "vectors" / "pMCB306.gb"),
 }
 _UPLOAD = "upload"
 _OTHER = "__other__"      # enzyme dropdown value that reveals the full enzyme search
@@ -116,8 +126,8 @@ _TIP_TABLE = (
     _link("CRISPick", _CRISPICK), ". More under Guide → Getting started.",
 )
 _TIP_VECTOR = (
-    "The empty vector you will clone into. ipUSEPR, lentiCRISPR v2 and LentiCRISPRv2GFP are "
-    "built in. Choose “Upload my own” for another circular GenBank file.",
+    "The empty vector you will clone into. Nine popular vectors are built in, and the enzyme(s) "
+    "that suit each one are chosen for you. Choose “Upload my own” for another circular GenBank file.",
 )
 _TIP_ENZYME = (
     "The Type IIS enzyme used for sgRNA cloning. The app cuts the vector in silico at the "
@@ -536,17 +546,42 @@ def server(input, output, session):
             return "Upload an sgRNA table, or click Load example sgRNAs."
         return _missing_setup()
 
+    _applied = {"vec": None}      # the vector the suggested enzymes were last applied for
+
+    @reactive.effect
+    def _auto_pick():
+        """When a vector is chosen, select the enzyme(s) that cut next to its Pol III promoter."""
+        found = suggestions()
+        if not found:
+            return
+        first = found[0]
+        if first.enzyme_b:
+            ui.update_radio_buttons("enzyme_mode", selected="two")
+        elif first.enzyme in ENZYMES:
+            ui.update_radio_buttons("enzyme_mode", selected="one")
+            ui.update_select("enzyme", selected=first.enzyme)
+        else:
+            ui.update_radio_buttons("enzyme_mode", selected="one")
+            ui.update_select("enzyme", selected=_OTHER)
+            ui.update_selectize("other_enzyme", selected=first.enzyme)
+
     @reactive.effect
     def _offer_single_cutters():
         """In two-enzyme mode, offer only the enzymes that cut this vector exactly once."""
         if input.enzyme_mode() != "two":
             return
         try:
-            cutters = single_cutters(vector_record())
+            record = vector_record()
+            cutters = single_cutters(record)
         except Exception:
             return
         with reactive.isolate():
             keep = {"enzyme_a": input.enzyme_a(), "enzyme_b": input.enzyme_b()}
+            suggested = next((x for x in suggestions() if x.enzyme_b), None)
+        if _applied["vec"] != id(record):             # a new vector: use its suggested pair, not the old one
+            _applied["vec"] = id(record)
+            keep = {"enzyme_a": suggested.enzyme if suggested else "",
+                    "enzyme_b": suggested.enzyme_b if suggested else ""}
         for id_, current in keep.items():
             ui.update_selectize(
                 id_, choices={"": f"Choose an enzyme… ({len(cutters)} cut once)", **{c: c for c in cutters}},

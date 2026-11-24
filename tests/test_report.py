@@ -46,7 +46,7 @@ def test_design_template_matches_the_classic_design(ipusepr):
 
 
 def test_design_template_for_two_enzymes():
-    rec = sod.read_vector_gb(ROOT / "tests" / "fixtures" / "pMCB306.gb")
+    rec = sod.read_vector_gb(ROOT / "PyShinyApp" / "vectors" / "pMCB306.gb")
     site = sod.find_cloning_site(rec, "BstXI", enzyme_b="BlpI")
     top, bottom = report.design_template(site, "never")
     assert report.split_spacer(top) == ("TTG", "N" * 20, "GTTTAAGAGC")

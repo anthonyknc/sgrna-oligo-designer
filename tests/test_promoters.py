@@ -11,7 +11,7 @@ from promoters import find_pol3_promoters, _from_sequence
 
 ROOT = Path(__file__).resolve().parent.parent
 VECTORS = ROOT / "PyShinyApp" / "vectors"
-PMCB306 = ROOT / "tests" / "fixtures" / "pMCB306.gb"
+PMCB306 = ROOT / "PyShinyApp" / "vectors" / "pMCB306.gb"
 
 
 def load(path):
@@ -115,3 +115,11 @@ def test_promoter_decides_orientation_when_scaffold_cannot():
     auto = core.find_cloning_site(rec2, "BsmBI", "auto")
     assert auto.orientation == "reverse"
     assert not any("Could not confirm" in w for w in auto.warnings)
+
+
+def test_h1_found_by_sequence():
+    (p,) = find_pol3_promoters(bare(load(VECTORS / "phH1-gRNA.gb")))
+    assert (p.name, p.source, p.strand) == ("H1", "sequence", +1)
+    # the dual vector has both a U6 (sgRNA) and an H1 (shRNA) cassette
+    names = [p.name for p in find_pol3_promoters(bare(load(VECTORS / "pU6-BbsI_CBh-Cas9-T2A-mCherry-H1.gb")))]
+    assert sorted(names) == ["H1", "human U6"]

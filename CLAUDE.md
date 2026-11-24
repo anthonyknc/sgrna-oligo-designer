@@ -13,8 +13,8 @@ Type IIS (restriction-enzyme) cloning of SpCas9 sgRNAs into lentiviral vectors. 
   Core mode; navbar layout with Design and Guide tabs, bslib cards/value boxes, `faicons` icons,
   built-in `input_dark_mode`), `report.py` (tested presentation helpers: result table, oligo design
   template, zip/CSV bundles; no Shiny code), `sgrna_oligo_designer.py` (core logic, no CLI), `help/*.md` (SOURCE OF TRUTH for the
-  Guide tab; the README links to these files, keep their links absolute), `vectors/` (the three bundled
-  vectors, offered as presets), `example_inputs/` (table for the "Load example sgRNAs" button),
+  Guide tab; the README links to these files, keep their links absolute), `vectors/` (the nine bundled
+  vectors, offered as presets; see its README for provenance), `example_inputs/` (table for the "Load example sgRNAs" button),
   and `requirements.txt` (GENERATED, don't hand-edit).
 - `example_inputs/sgRNA_seqs/` and `example_outputs/` at the root are the reference data the tests use.
 - `tests/`: `test_golden.py` (example vectors vs `example_outputs/`), `test_cloning.py` (synthetic
@@ -125,7 +125,7 @@ from the Type IIS arithmetic used in one-enzyme mode. `CloningSite` carries per-
 so the flanking bases (`left_extra`/`right_extra`) are suggested from the scaffold start (assumes a
 20-nt placeholder) and user-overridable. The spacer-site warning ignores sites that touch the spacer by
 one base only (vectors regenerate their own site, e.g. BstXI's last G is the guide's first G).
-Tested on a real vector (`tests/fixtures/pMCB306.gb`, Addgene 89360) plus synthetic vectors for many
+Tested on a real vector (`PyShinyApp/vectors/pMCB306.gb`, Addgene 89360) plus synthetic vectors for many
 pairs, using an independent check: cloning the original stuffer back must reproduce the digest strands.
 Not supported yet: shRNA hairpin inserts (pLKO.1, AgeI+EcoRI), stuffers longer than the backbone.
 
@@ -133,7 +133,7 @@ Not supported yet: shRNA hairpin inserts (pLKO.1, AgeI+EcoRI), stuffers longer t
 
 `promoters.py` (no dependency on the core) finds the Pol III promoter: annotation first (label regex),
 else local alignment of the ~100 bp 3' end against references (human U6 from ipUSEPR, mouse U6 from
-pMCB306). H1/7SK are annotation-only until a verified reference sequence is added. The core uses it to
+pMCB306, H1 from phH1-gRNA/Addgene 64217). 7SK is annotation-only until a verified reference sequence is added. Choosing a vector in the app auto-selects the first suggestion (`_auto_pick`; `_offer_single_cutters` applies a suggested pair once per new vector). The core uses it to
 set `CloningSite.promoter`, break orientation ties when the scaffold cannot (`find_cloning_site` auto),
 and `suggest_cloning_sites()` (one enzyme: cuts twice and sits after the promoter; two enzymes: left cut
 after the promoter, right cut at the scaffold start). The app shows a Promoter chip and a hint. It is

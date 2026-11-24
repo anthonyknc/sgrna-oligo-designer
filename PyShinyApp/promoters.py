@@ -7,10 +7,9 @@ tried in this order:
 
 1. Annotation: a feature labelled U6, H1, 7SK or "Pol III promoter" (any spelling).
 2. Sequence: if no annotation is found, the 3' end of the promoter is looked for by local
-   alignment against reference sequences (human and mouse U6).
+   alignment against reference sequences (human U6, mouse U6, H1).
 
-Only promoters whose sequence could be checked have a sequence reference. H1 and 7SK are
-recognised from annotations only.
+7SK is recognised from annotations only (no verified reference sequence yet).
 """
 from __future__ import annotations
 
@@ -22,10 +21,11 @@ from Bio import Align
 from Bio.Seq import Seq
 
 # 3' ends of the promoters (the ~100 bp that contain the TATA box and PSE, which are the
-# best conserved part). Taken from ipUSEPR (human U6) and pMCB306 (mouse U6, the part after
-# its loxP site); the trailing CACC of the human U6 is left out because vectors differ there.
+# best conserved part). Taken from ipUSEPR (human U6), pMCB306 (mouse U6, the part after its
+# loxP site) and phH1-gRNA / Addgene 64217 (H1, identical in both); the trailing CACC of the human U6 is left out because vectors differ there.
 REFERENCES = {
     "human U6": "AGTTTGCAGTTTTAAAATTATGTTTTAAAATGGACTATCATATGCTTACCGTAACTTGAAAGTATTTCGATTTCTTGGCTTTATATATCTTGTGGAAAGGACGAAAC",
+    "H1": "GGGACAGGGGAGTGGCGCCCTGCAATATTTGCATGTCGCTATGTGTTCTGGGAAATCACCATAAACGTGAAATGTCTTTGGATTTGGGAATCTTATAAGTTCTGTATGAGACCACT",
     "mouse U6": "CAGCACAAAAGGAAACTCACCCTAACTGTAAAGTAATTGTGTGTTTTGAGACTATAAGTATCCCTTGGAGAACCACCTTGTTG",
 }
 MIN_IDENTITY = 0.85         # fraction of the reference that must match

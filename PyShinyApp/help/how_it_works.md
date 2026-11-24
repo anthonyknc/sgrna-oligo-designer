@@ -93,11 +93,11 @@ Any commercially available enzyme can be used here, including palindromic and de
 
 **Constant bases around the spacer.** With two enzymes the cuts do not say where the spacer goes, because the vector keeps some constant bases inside the removed piece (for pMCB306: `TTG` before the spacer and `GTTTAAGAGC` after it, the start of the scaffold). The app works these out by finding the Cas9 scaffold start in the removed piece and assuming a 20-nt spacer slot, and shows them under **Cloning site**. Under **Advanced options** you can type your own values (copy them from your vector's oligo design instructions); a blank box means "use the automatic ones". If the scaffold is not found, enter them yourself.
 
-Two-enzyme mode has only been tested on one real vector (pMCB306) and on synthetic vectors, so compare the designed oligos with your vector's published oligo design before ordering. It currently designs sgRNAs only; shRNA hairpin vectors such as pLKO.1 need a different insert and are not supported yet.
+Two-enzyme mode has been tested on two real vectors (pMCB306 and Addgene 60955) and on synthetic vectors, so compare the designed oligos with your vector's published oligo design before ordering. It currently designs sgRNAs only; shRNA hairpin vectors such as pLKO.1 need a different insert and are not supported yet.
 
 ## The Pol III promoter
 
-The sgRNA is transcribed from a Pol III promoter (U6, H1 or 7SK). The app looks for it in your vector, first by its annotation (a feature named U6, hU6, mU6, H1, 7SK or Pol III promoter) and, if there is none, by sequence (human and mouse U6 are recognised this way). It is shown as **Promoter** in the Cloning site card.
+The sgRNA is transcribed from a Pol III promoter (U6, H1 or 7SK). The app looks for it in your vector, first by its annotation (a feature named U6, hU6, mU6, H1, 7SK or Pol III promoter) and, if there is none, by sequence (human U6, mouse U6 and H1 are recognised this way). It is shown as **Promoter** in the Cloning site card.
 
 It is used in three ways:
 
@@ -105,7 +105,9 @@ It is used in three ways:
 - **Suggestions.** If the enzyme you chose does not cut next to the promoter, or does not cut the vector the right number of times, the card lists the sites that do (for example *BsmBI*, or *BstXI + BlpI*).
 - **Checking.** "none found upstream" means the sgRNA may be driven by something else (a tRNA, a ribozyme, or Pol II). That is fine for such vectors; otherwise check your enzyme choice.
 
-H1 and 7SK are recognised from annotations only, so an unannotated H1 or 7SK vector gets no promoter and no suggestions. The cloning itself still works as before.
+7SK is recognised from annotations only, so an unannotated 7SK vector gets no promoter and no suggestions. The cloning itself still works as before.
+
+When you choose a vector, the app selects the first suggestion for you (one enzyme, or the two-enzyme pair). H1 does not need a 5′ G, so for H1 vectors such as phH1-gRNA set **5′ G** to *Never* under Advanced options.
 
 ## Do the oligos need to be phosphorylated?
 
@@ -117,11 +119,17 @@ first; that is optional here.
 
 ## Supported vectors
 
-The app works with any circular sgRNA cloning vector that has exactly two sites for one of the supported enzymes. The following are tested (the example outputs in [`example_outputs/`](https://github.com/anthonyknc/sgrna-oligo-designer/tree/main/example_outputs) are generated from them):
+The app works with any circular sgRNA cloning vector that has exactly two sites for one of the supported enzymes. The following are bundled and tested (the example outputs in [`example_outputs/`](https://github.com/anthonyknc/sgrna-oligo-designer/tree/main/example_outputs) are generated from them):
 
 | Vector | Addgene / Reference | Enzyme | sgRNA orientation in the file |
 |---|---|---|---|
 | ipUSEPR | PMIDs: [34210975](https://pubmed.ncbi.nlm.nih.gov/34210975/), [34373586](https://pubmed.ncbi.nlm.nih.gov/34373586/), [36563143](https://pubmed.ncbi.nlm.nih.gov/36563143/), [37075745](https://pubmed.ncbi.nlm.nih.gov/37075745/), [38394203](https://pubmed.ncbi.nlm.nih.gov/38394203/), [38316881](https://pubmed.ncbi.nlm.nih.gov/38316881/), [39716856](https://pubmed.ncbi.nlm.nih.gov/39716856/) | *Bsm*BI | forward |
 | lentiCRISPR v2 | [Addgene #52961](https://www.addgene.org/52961/) | *Bsm*BI | forward |
 | LentiCRISPRv2GFP | [Addgene #82416](https://www.addgene.org/82416/) | *Bsm*BI | reverse |
+| lentiGuide-Puro | [Addgene #52963](https://www.addgene.org/52963/) | *Bsm*BI | forward |
+| pX330 | [Addgene #42230](https://www.addgene.org/42230/) | *Bbs*I | forward |
+| pU6-(BbsI)_CBh-Cas9-T2A-mCherry-H1 | [Addgene #64217](https://www.addgene.org/64217/) | *Bbs*I (the H1 cassette is for shRNAs) | forward |
+| phH1-gRNA (H1 promoter) | [Addgene #53186](https://www.addgene.org/53186/) | *Bbs*I | forward |
+| pU6-sgRNA EF1Alpha-puro-T2A-BFP | [Addgene #60955](https://www.addgene.org/60955/) | *Bst*XI + *Blp*I | forward |
+| pMCB306 (mouse U6) | [Addgene #89360](https://www.addgene.org/89360/) | *Bst*XI + *Blp*I | forward |
 
