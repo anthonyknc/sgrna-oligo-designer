@@ -56,6 +56,9 @@ ORIENTATIONS = ("auto", "forward", "reverse")
 # this in essentially every SpCas9 vector, which lets us detect orientation.
 SCAFFOLD_START = "GTTT"
 
+# Largest sgRNA table accepted in one run (keeps the web app responsive).
+MAX_SGRNAS = 1000
+
 _COMPLEMENT = str.maketrans("ACGTacgt", "TGCAtgca")
 
 
@@ -177,13 +180,33 @@ def _locate(seq: str, enzyme: Enzyme) -> tuple[int, int]:
         )
     removed, other_piece = y0 - (x0 + k), n - (y0 + k - x0)
     if removed > other_piece:
-        raise ValueError(origin_msg)      # the shorter piece is the one crossing the origin
+        # the shorter piece is the one crossing the origin
+        raise ValueError(
+            f"The two {enzyme.name} sites split the plasmid into a {removed} bp piece between the "
+            f"sites and a {other_piece} bp piece that crosses the origin (position 1) of the map. "
+            "The shorter piece is taken to be the stuffer, and a stuffer that crosses the origin is "
+            "not supported. Move the origin elsewhere in your plasmid editor, re-export the "
+            "GenBank file, and try again. (If the stuffer is really the longer piece, this vector "
+            "cannot be handled yet.)"
+        )
     return x0, y0
 
 
 def _site_from(seq: str, enzyme: Enzyme, x0: int, y0: int, orientation: str,
                warnings: tuple = ()) -> CloningSite:
     k, ctx = enzyme.overhang_len, len(enzyme.site) - 1
+    left, right = seq[x0:x0 + k], seq[y0:y0 + k]
+    notes = list(warnings)
+    if left == right:
+        notes.append(
+            f"Both overhangs are identical ({left}), so the insert can ligate in either "
+            "orientation. Check the vector."
+        )
+    elif left == reverse_complement(left) or right == reverse_complement(right):
+        notes.append(
+            f"An overhang ({left if left == reverse_complement(left) else right}) is palindromic, "
+            "so vector ends can ligate to each other and empty vectors are likely."
+        )
     return CloningSite(
         enzyme=enzyme.name,
         enzyme_site=enzyme.site,
@@ -195,7 +218,7 @@ def _site_from(seq: str, enzyme: Enzyme, x0: int, y0: int, orientation: str,
         left_context=seq[max(0, x0 - ctx):x0],
         right_context=seq[y0 + k:y0 + k + ctx],
         vector_length=len(seq),
-        warnings=warnings,
+        warnings=tuple(notes),
     )
 
 
@@ -345,6 +368,12 @@ def add_cloning_oligos(
         seq, notes = _validate_sgrna_seq(row[seq_col], sgrna_id)
         core = build_insert_core(seq, g_mode)
 
+        if "TTTT" in seq:
+            notes.append(
+                "contains TTTT, which ends transcription from U6 and other RNA polymerase III "
+                "promoters, so the sgRNA may be truncated. Choose another guide if your vector "
+                "uses such a promoter."
+            )
         window = site.left_context + site.left_overhang + core + site.right_overhang + site.right_context
         if any(p in window for p in site_pats):
             notes.append(
@@ -428,7 +457,18 @@ def build_idt_rows(rows: list[dict], id_col: str = "sgRNA_id") -> list[dict]:
 def read_vector_gb(path: Path):
     """Parse a vector GenBank file into a Bio.SeqRecord.SeqRecord."""
     from Bio import SeqIO
-    return SeqIO.read(path, "genbank")
+    try:
+        return SeqIO.read(path, "genbank")
+    except Exception as e:
+        msg = str(e)
+        if "More than one record" in msg:
+            raise ValueError(
+                "This GenBank file contains more than one record. Upload a file with a single plasmid."
+            ) from e
+        raise ValueError(
+            "Could not read this file as a GenBank file. Export the map from SnapGene or "
+            "Benchling in GenBank (.gb) format."
+        ) from e
 
 
 def _remap_feature(feature, r0: int, r1: int, new_len: int):
@@ -444,7 +484,7 @@ def _remap_feature(feature, r0: int, r1: int, new_len: int):
     from Bio.SeqFeature import CompoundLocation, FeatureLocation
 
     loc = feature.location
-    delta, parts = new_len - (r1 - r0), []
+    delta, parts, changed = new_len - (r1 - r0), [], False
     for p in loc.parts:
         s, e = int(p.start), int(p.end)
         if e <= r0:
@@ -452,6 +492,7 @@ def _remap_feature(feature, r0: int, r1: int, new_len: int):
         elif s >= r1:
             parts.append(FeatureLocation(s + delta, e + delta, p.strand))
         else:
+            changed = True
             ns = s if s < r0 else r0 + new_len
             ne = e + delta if e > r1 else r0
             if ne > ns:
@@ -460,6 +501,8 @@ def _remap_feature(feature, r0: int, r1: int, new_len: int):
         return None
 
     new = copy.deepcopy(feature)
+    if changed:
+        new.qualifiers.pop("translation", None)    # no longer matches the edited sequence
     new.location = parts[0] if len(parts) == 1 else CompoundLocation(parts, operator=loc.operator)
     return new
 
@@ -601,37 +644,45 @@ def write_gb_files(
 def read_input(path: Path) -> list[dict]:
     """
     Read an input spreadsheet or delimited file into a list of row dicts.
-    Supports .xlsx / .xlsm / .xls (via openpyxl), .csv, and .tsv.
+    Supports .xlsx / .xlsm (via openpyxl), .csv, and .tsv.
 
-    Completely empty rows (all values empty or whitespace-only) are dropped;
-    trailing blank rows are common in files saved from Excel.
+    Completely empty rows (all values empty or whitespace-only) and columns with a blank
+    header are dropped; both are common in files saved from Excel. Raises ValueError for
+    an unsupported type, an empty table, or more than ``MAX_SGRNAS`` rows.
     """
     suffix = path.suffix.lower()
 
-    def _non_empty(rows: list[dict]) -> list[dict]:
-        return [row for row in rows if any(str(v).strip() for v in row.values())]
-
-    if suffix in {".xlsx", ".xlsm", ".xls"}:
+    if suffix in {".xlsx", ".xlsm"}:
         import openpyxl
-        wb        = openpyxl.load_workbook(path, read_only=True, data_only=True)
-        ws        = wb.active
-        rows_iter = ws.iter_rows(values_only=True)
-        headers   = [str(h) for h in next(rows_iter)]
-        rows      = [dict(zip(headers, (str(v) if v is not None else "" for v in row)))
-                     for row in rows_iter]
-        wb.close()
-        return _non_empty(rows)
-
-    elif suffix == ".csv":
+        wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        try:
+            rows_iter = wb.active.iter_rows(values_only=True)
+            raw_headers = next(rows_iter, None)
+            if raw_headers is None:
+                raise ValueError("The spreadsheet is empty.")
+            headers = [str(h).strip() if h is not None else "" for h in raw_headers]
+            rows = [
+                {h: (str(v) if v is not None else "") for h, v in zip(headers, row) if h}
+                for row in rows_iter
+            ]
+        finally:
+            wb.close()
+    elif suffix in {".csv", ".tsv"}:
         with open(path, newline="", encoding="utf-8-sig") as fh:
-            return _non_empty(list(csv.DictReader(fh)))
-
-    elif suffix == ".tsv":
-        with open(path, newline="", encoding="utf-8-sig") as fh:
-            return _non_empty(list(csv.DictReader(fh, delimiter="\t")))
-
+            rows = [{k: v for k, v in row.items() if k}
+                    for row in csv.DictReader(fh, delimiter="," if suffix == ".csv" else "\t")]
     else:
         raise ValueError(f"Unsupported file type: '{suffix}'. Use .xlsx, .csv, or .tsv")
+
+    rows = [r for r in rows if any(str(v or "").strip() for v in r.values())]
+    if not rows:
+        raise ValueError("No sgRNA rows were found in the table.")
+    if len(rows) > MAX_SGRNAS:
+        raise ValueError(
+            f"The table has {len(rows)} rows; this app handles up to {MAX_SGRNAS} sgRNAs at a time. "
+            "Split the table and run it in batches."
+        )
+    return rows
 
 
 def write_idt_excel(idt_rows: list[dict], path: Path) -> None:

@@ -110,6 +110,10 @@ Things that span functions and are easy to miss:
 ## Known issues
 
 - The app only offers the combined `.gb`; per-sgRNA files are not offered.
-- A cloning site that spans the plasmid origin is rejected rather than handled.
+- A cloning site that spans the plasmid origin is rejected rather than handled (the error reports both piece sizes).
+- Tables are capped at `MAX_SGRNAS` (1000) rows; only `.xlsx/.xlsm/.csv/.tsv` are read (not `.xls`).
+- Spacer checks in `add_cloning_oligos`: enzyme site (both strands + junctions) and a TTTT Pol III
+  terminator; `CloningSite.warnings` also flags unconfirmed orientation and identical/palindromic
+  overhangs. The app shows both kinds together in the results.
 - A local git `post-commit` hook used to copy the root script into `PyShinyApp/`; it is disabled
   (`.git/hooks/post-commit.disabled`) because there is now a single copy.

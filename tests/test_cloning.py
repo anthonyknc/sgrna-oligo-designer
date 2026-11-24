@@ -288,3 +288,56 @@ def test_input_vector_is_not_modified():
     sod.build_plasmid_records(
         sod.add_cloning_oligos([{"sgRNA_id": "a", "sgRNA_seq": SG}], site), rec, site)
     assert (str(rec.seq), len(rec.features)) == before
+
+
+# --- review follow-ups: warnings, messages, qualifiers ---------------------------
+
+def test_tttt_terminator_in_spacer_warns():
+    rec, _ = make_vector("BsmBI", "A")
+    site = sod.find_cloning_site(rec, "BsmBI")
+    rows = sod.add_cloning_oligos([{"sgRNA_id": "t", "sgRNA_seq": "AAAATTTTAAAACCCCGGGG"},
+                                   {"sgRNA_id": "ok", "sgRNA_seq": "AAAATTTAAAACCCCGGGGA"}], site)
+    assert any("TTTT" in w and "RNA polymerase III" in w for w in rows[0]["warnings"])
+    assert not any("TTTT" in w for w in rows[1]["warnings"])
+
+
+def test_identical_and_palindromic_overhangs_warn():
+    same, _ = make_vector("BsmBI", "A", left_ov="CACC", right_ov="CACC")
+    assert any("identical" in w for w in sod.find_cloning_site(same, "BsmBI", "forward").warnings)
+    pal, _ = make_vector("BsmBI", "A", left_ov="AATT", right_ov="GTTT")
+    assert any("palindromic" in w for w in sod.find_cloning_site(pal, "BsmBI").warnings)
+    ok, _ = make_vector("BsmBI", "A")
+    assert sod.find_cloning_site(ok, "BsmBI").warnings == ()
+
+
+def test_large_stuffer_error_reports_both_piece_sizes():
+    rec, _ = make_vector("BsmBI", "A", mid=_filler(800, 7), bb_l=_filler(100, 8), bb_r=_filler(100, 9))
+    with pytest.raises(ValueError, match=r"\d+ bp piece between the sites and a \d+ bp piece that crosses the origin"):
+        sod.find_cloning_site(rec, "BsmBI")
+
+
+def test_translation_qualifier_dropped_only_when_the_feature_is_edited():
+    rec, _ = make_vector("BsaI", "A")
+    site = sod.find_cloning_site(rec, "BsaI")
+    r0, r1 = site.replace_start, site.replace_end
+    cds = lambda a, b, label: SeqFeature(FeatureLocation(a, b, 1), type="CDS",
+                                         qualifiers={"label": [label], "translation": ["MKV"]})
+    rec.features = [cds(10, 40, "before"), cds(r0 - 20, r1 + 20, "spanning"), cds(r1 + 30, r1 + 60, "after")]
+    rows = sod.add_cloning_oligos([{"sgRNA_id": "a", "sgRNA_seq": SG}], site)
+    (out,) = sod.build_plasmid_records(rows, rec, site)
+    by = {f.qualifiers["label"][0]: f for f in out.features if f.type == "CDS"}
+    assert "translation" in by["before"].qualifiers and "translation" in by["after"].qualifiers
+    assert "translation" not in by["spanning"].qualifiers
+
+
+def test_read_vector_gb_gives_friendly_errors(tmp_path):
+    from pathlib import Path
+    good = (Path(__file__).resolve().parent.parent / "PyShinyApp" / "vectors" / "ipUSEPR.gb").read_text()
+    two = tmp_path / "two.gb"
+    two.write_text(good + good)
+    with pytest.raises(ValueError, match="more than one record"):
+        sod.read_vector_gb(two)
+    junk = tmp_path / "junk.gb"
+    junk.write_text("this is not a genbank file\n")
+    with pytest.raises(ValueError, match="Could not read this file as a GenBank"):
+        sod.read_vector_gb(junk)

@@ -125,3 +125,48 @@ def test_read_input_rejects_unknown_extension(tmp_path):
     p.write_text("x")
     with pytest.raises(ValueError, match="Unsupported"):
         sod.read_input(p)
+
+
+# --- read_input edge cases -----------------------------------------------------------
+
+def _xlsx(path, rows):
+    import openpyxl
+    wb = openpyxl.Workbook()
+    for r in rows:
+        wb.active.append(r)
+    wb.save(path)
+
+
+def test_empty_spreadsheet_gives_a_clear_error(tmp_path):
+    import openpyxl
+    p = tmp_path / "empty.xlsx"
+    openpyxl.Workbook().save(p)
+    with pytest.raises(ValueError, match="No sgRNA rows|empty"):
+        sod.read_input(p)
+
+
+def test_header_only_and_blank_csv_give_a_clear_error(tmp_path):
+    p = tmp_path / "h.csv"
+    p.write_text("sgRNA_id,sgRNA_seq\n,\n")
+    with pytest.raises(ValueError, match="No sgRNA rows"):
+        sod.read_input(p)
+
+
+def test_blank_header_columns_are_dropped(tmp_path):
+    p = tmp_path / "t.xlsx"
+    _xlsx(p, [["sgRNA_id", "sgRNA_seq", None], ["a", SG, "stray"]])
+    assert sod.read_input(p) == [{"sgRNA_id": "a", "sgRNA_seq": SG}]
+
+
+def test_row_cap(tmp_path):
+    p = tmp_path / "big.csv"
+    p.write_text("sgRNA_id,sgRNA_seq\n" + "".join(f"s{i},{SG}\n" for i in range(sod.MAX_SGRNAS + 1)))
+    with pytest.raises(ValueError, match="up to 1000"):
+        sod.read_input(p)
+
+
+def test_xls_is_not_claimed_to_be_supported(tmp_path):
+    p = tmp_path / "old.xls"
+    p.write_bytes(b"x")
+    with pytest.raises(ValueError, match="Unsupported"):
+        sod.read_input(p)

@@ -13,6 +13,7 @@ from pathlib import Path
 import pandas as pd
 import shinyswatch
 from shiny import App, reactive, render, req, ui
+from shiny.types import SilentException
 from shiny import ui as sui
 
 from sgrna_oligo_designer import (
@@ -467,6 +468,11 @@ def server(input, output, session):
     _stale = reactive.value(False)
 
     @reactive.effect
+    @reactive.event(input.sgrna_file, ignore_init=True)
+    def _uploaded_table():
+        _use_example.set(False)      # a newly uploaded table replaces the example
+
+    @reactive.effect
     @reactive.event(input.run_btn, input.example_btn, ignore_init=True)
     def _mark_fresh():
         _ran.set(True)
@@ -585,7 +591,8 @@ def server(input, output, session):
         )
 
     def _all_warnings() -> list[str]:
-        return [w for r in processed_rows() for w in r["warnings"]]
+        """Cloning-site warnings (e.g. unconfirmed orientation) plus every sgRNA's warnings."""
+        return list(cloning_site().warnings) + [w for r in processed_rows() for w in r["warnings"]]
 
     # --- Notification on completion ---
 
@@ -600,6 +607,12 @@ def server(input, output, session):
                 + (f" ({len(warns)} warning(s), see below)" if warns else ""),
                 type="warning" if warns else "message",
                 duration=4,
+            )
+        except SilentException:
+            ui.notification_show(
+                "Upload an sgRNA table (or click Load example sgRNAs), and a vector file if you chose "
+                "'Upload my own', then click Run.",
+                type="warning", duration=6,
             )
         except Exception as e:
             ui.notification_show(str(e), type="error", duration=8)
