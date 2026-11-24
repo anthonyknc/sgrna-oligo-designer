@@ -44,14 +44,6 @@ uv run shiny run PyShinyApp/app.py --reload   # run locally
 uv run pytest                                 # run the tests
 ```
 
-To deploy to shinyapps.io, regenerate the pinned requirements and deploy
-(requires `rsconnect add` credentials):
-
-```bash
-uv export --no-dev --no-hashes --no-emit-project -o PyShinyApp/requirements.txt
-uv run rsconnect deploy shiny PyShinyApp --name <account> --title sgrna-oligo-designer
-```
-
 ---
 
 ## Citing
