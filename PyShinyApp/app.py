@@ -135,18 +135,102 @@ _BUSY_CSS = """
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _tip(text: str):
-    """Inline ⓘ tooltip icon — uses native HTML title for reliable cross-context display."""
-    return sui.tags.span(
-        " ⓘ",
-        title=text,
-        style="cursor:help; color:#adb5bd; font-size:0.85em;",
+def _info(title: str, *content, placement: str = "right"):
+    """
+    A small '?' button that opens a popover when clicked (click only, so it also works on
+    touch screens; click again or click elsewhere to close). A real <button>, so it is
+    reachable by keyboard and does not trigger the surrounding label's input.
+    """
+    return sui.popover(
+        sui.tags.button("?", type="button", class_="info-btn",
+                        **{"aria-label": f"More information: {title}"}),
+        *content,
+        title=title,
+        placement=placement,
+        options={"trigger": "click"},
     )
 
 
-def _label(text: str, tip: str):
-    """Input label with inline tooltip."""
-    return sui.tags.span(text, _tip(tip))
+def _label(text: str, *tip, title: str | None = None):
+    """Input label followed by a click-to-open '?' popover."""
+    return sui.tags.span(text, _info(title or text, *tip))
+
+
+def _link(text: str, href: str):
+    return sui.tags.a(text, href=href, target="_blank", rel="noopener")
+
+
+_CRISPICK = "https://portals.broadinstitute.org/gppx/crispick/public"
+
+_TIP_TABLE = (
+    "A spreadsheet (.xlsx, .csv or .tsv) with one row per sgRNA and two columns: ",
+    sui.tags.code("sgRNA_id"), " (unique, no spaces) and ", sui.tags.code("sgRNA_seq"),
+    " (the 20-nt target sequence, without the PAM or any overhangs). Extra columns are ignored, "
+    "and spaces and lowercase are cleaned automatically. Design guides with ",
+    _link("CRISPick", _CRISPICK), ". More under Guide → Getting started.",
+)
+_TIP_VECTOR = (
+    "The empty vector you will clone into. ipUSEPR, lentiCRISPR v2 and LentiCRISPRv2GFP are "
+    "built in. Choose “Upload my own” for another circular GenBank file.",
+)
+_TIP_ENZYME = (
+    "The Type IIS enzyme used for Golden Gate cloning. The app cuts the vector in silico at the "
+    "enzyme's two sites and reads the overhangs from the cuts, so you never type them. The vector "
+    "must have exactly two sites for the enzyme you pick.",
+)
+_TIP_G = (
+    "The human U6 promoter starts transcription best at a G. ‘Always’ adds a G to every sgRNA "
+    "(CACCG-sgRNA), the standard in the lentiCRISPR and Broad protocols, even when the sgRNA "
+    "already starts with G. See ",
+    _link("Ran et al., 2013", "https://pubmed.ncbi.nlm.nih.gov/24157548/"),
+    ". Details under Guide → How it works.",
+)
+_TIP_SITE = (
+    "The 4-nt overhangs your oligos must carry, read from the cut ends of the vector, and how many "
+    "bases between the cuts are replaced by the sgRNA. Orientation is the strand of the GenBank "
+    "file the sgRNA is transcribed from.",
+)
+
+
+def _guide(name: str):
+    """Render one of the help/*.md files (the single source of truth for the guide)."""
+    return sui.markdown((_HERE / "help" / f"{name}.md").read_text(encoding="utf-8"))
+
+
+# Close any open info popover on an outside click or Escape. (Bootstrap's click trigger only
+# toggles; its 'focus' trigger would break in Safari, which doesn't focus buttons on click.)
+_INFO_JS = """
+(function () {
+  function closeOpen(except) {
+    document.querySelectorAll('.popover.show').forEach(function (pop) {
+      var trigger = document.querySelector('[aria-describedby="' + pop.id + '"]');
+      if (!trigger || trigger === except) return;
+      var inst = window.bootstrap && bootstrap.Popover.getInstance(trigger);
+      if (inst) inst.hide();
+    });
+  }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('.popover')) return;
+    closeOpen(e.target.closest('.info-btn'));
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeOpen(null); });
+})();
+"""
+
+_INFO_CSS = """
+.info-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.15rem; height: 1.15rem; margin-left: 0.4rem; padding: 0;
+    border: 1px solid #adb5bd; border-radius: 50%; background: transparent;
+    color: #6c757d; font-size: 0.7rem; font-weight: 700; line-height: 1;
+    cursor: pointer; vertical-align: middle;
+}
+.info-btn:hover, .info-btn:focus-visible { color: #fff; background: #6c757d; border-color: #6c757d; }
+.popover { max-width: 320px; }
+.guide h1 { font-size: 1.6rem; margin-bottom: 1rem; }
+.guide h2 { font-size: 1.25rem; margin-top: 1.75rem; }
+.guide { max-width: 52rem; }
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -180,7 +264,7 @@ app_ui = sui.page_sidebar(
         # --- Load example ---
         sui.input_action_button(
             "example_btn",
-            "⚡ Load example data",
+            "⚡ Load example sgRNAs",
             class_="btn-outline-secondary w-100",
         ),
 
@@ -190,7 +274,7 @@ app_ui = sui.page_sidebar(
         sui.h6("Step 1 — sgRNA table"),
         sui.input_file(
             "sgrna_file",
-            "Upload sgRNA table (.xlsx, .csv, or .tsv)",
+            _label("Upload sgRNA table", *_TIP_TABLE, title="sgRNA table"),
             accept=[".xlsx", ".xlsm", ".csv", ".tsv"],
         ),
 
@@ -200,7 +284,7 @@ app_ui = sui.page_sidebar(
         sui.h6("Step 2 — Vector and enzyme"),
         sui.input_select(
             "vector_choice",
-            "Vector",
+            _label("Vector", *_TIP_VECTOR),
             {**{k: v[0] for k, v in _VECTORS.items()}, _UPLOAD: "Upload my own vector (.gb)…"},
         ),
         sui.panel_conditional(
@@ -213,9 +297,7 @@ app_ui = sui.page_sidebar(
         ),
         sui.input_select(
             "enzyme",
-            _label("Restriction enzyme",
-                   "The Type IIS enzyme used for cloning. The overhangs and the stuffer are "
-                   "worked out for you by cutting the vector in silico."),
+            _label("Restriction enzyme", *_TIP_ENZYME),
             list(ENZYMES),
         ),
         sui.input_text(
@@ -252,9 +334,7 @@ app_ui = sui.page_sidebar(
                 ),
                 sui.input_radio_buttons(
                     "g_mode",
-                    _label("5' G for U6 transcription",
-                           "The human U6 promoter starts transcription best with a G. "
-                           "'Always' matches the standard lentiCRISPR / Broad protocols."),
+                    _label("5' G for U6 transcription", *_TIP_G),
                     _G_CHOICES,
                     selected="always",
                 ),
@@ -300,27 +380,44 @@ app_ui = sui.page_sidebar(
 
     # --- JS & CSS ---
     sui.tags.script(_DARK_MODE_JS),
-    sui.tags.style(_BUSY_CSS),
+    sui.tags.script(_INFO_JS),
+    sui.tags.style(_BUSY_CSS + _INFO_CSS),
 
-    # --- Main panel ---
-    sui.h4("Cloning site"),
-    sui.output_ui("site_info"),
-    sui.output_ui("stale_notice"),
+    # --- Main panel: Designer + Guide tabs ---
+    sui.navset_tab(
+        sui.nav_panel("Designer", sui.tags.div(
+        sui.h4("Cloning site", _info("Cloning site", *_TIP_SITE, placement="bottom")),
+        sui.output_ui("site_info"),
+        sui.output_ui("stale_notice"),
 
-    sui.h4("Summary"),
-    sui.output_text("summary"),
-    sui.output_ui("warnings_ui"),
+        sui.h4("Summary"),
+        sui.output_text("summary"),
+        sui.output_ui("warnings_ui"),
 
-    sui.hr(),
-    sui.h4("IDT order form preview"),
-    sui.output_table("idt_table"),
+        sui.hr(),
+        sui.h4("IDT order form preview"),
+        sui.output_table("idt_table"),
 
-    sui.hr(),
-    sui.h4("Downloads"),
-    sui.h6("IDT Bulk Order Form (.xlsx)"),
-    sui.download_button("download_idt", "Download IDT Order Form"),
-    sui.h6("Combined GenBank File (.gb)"),
-    sui.download_button("download_gb", "Download Combined GenBank"),
+        sui.hr(),
+        sui.h4("Downloads"),
+        sui.h6("IDT Bulk Order Form (.xlsx)"),
+        sui.download_button("download_idt", "Download IDT Order Form"),
+        sui.h6("Combined GenBank File (.gb)"),
+        sui.download_button("download_gb", "Download Combined GenBank")
+        , style="padding-top:1rem;")),
+        sui.nav_panel(
+            "Guide",
+            sui.tags.div(
+                sui.navset_pill(
+                    sui.nav_panel("Getting started", sui.tags.div(_guide("getting_started"), class_="guide")),
+                    sui.nav_panel("How it works", sui.tags.div(_guide("how_it_works"), class_="guide")),
+                    sui.nav_panel("Troubleshooting", sui.tags.div(_guide("troubleshooting"), class_="guide")),
+                    sui.nav_panel("Citing", sui.tags.div(_guide("citing"), class_="guide")),
+                ),
+                style="padding-top:1rem;",
+            ),
+        ),
+    ),
 
     # --- Footer ---
     sui.tags.div(

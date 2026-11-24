@@ -10,7 +10,8 @@ Golden Gate cloning of SpCas9 sgRNAs into lentiviral vectors. Audience: wet-lab 
 ## Layout
 
 - `PyShinyApp/` is the self-contained deploy dir for shinyapps.io: `app.py` (Shiny for Python,
-  Core mode), `sgrna_oligo_designer.py` (core logic, no CLI), `vectors/` (the three bundled
+  Core mode), `sgrna_oligo_designer.py` (core logic, no CLI), `help/*.md` (SOURCE OF TRUTH for the
+  Guide tab; the README links to these files, keep their links absolute), `vectors/` (the three bundled
   vectors, offered as presets), `example_inputs/` (table for the "Load example data" button),
   and `requirements.txt` (GENERATED, don't hand-edit).
 - `example_inputs/sgRNA_seqs/` and `example_outputs/` at the root are the reference data the tests use.
@@ -57,6 +58,9 @@ Things that span functions and are easy to miss:
   keeps that base and its annotations and replaces only what follows.
 - Warnings are returned in `row["warnings"]` / `CloningSite.warnings` (stderr is invisible in the
   web app). The app shows them.
+- Field help is a click-only `?` popover (`_info`/`_label` in `app.py`); a small JS handler closes
+  open popovers on outside click/Escape. Don't switch to Bootstrap's `focus` trigger: Safari doesn't
+  focus buttons on click.
 - The app's `cloning_site` calc is live (updates on vector/enzyme change and shows errors inline);
   results calcs fire only on Run/example clicks and are hidden as stale when a setting changes.
 - Golden tests compare GenBank output byte-for-byte (including the LOCUS line), so any change to
