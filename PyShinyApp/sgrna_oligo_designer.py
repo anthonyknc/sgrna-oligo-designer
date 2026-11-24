@@ -331,7 +331,7 @@ def add_cloning_oligos(
 
     A warning is raised if the spacer (or a junction it creates) contains the
     enzyme's recognition site, because the enzyme would cut the insert during
-    Golden Gate cloning.
+    cloning.
     """
     if rows and seq_col not in rows[0]:
         raise ValueError(

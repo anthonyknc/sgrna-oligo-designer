@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # sgRNA Oligo Designer
 
 Designs sgRNA cloning oligos (IDT bulk order `.xlsx`) and annotated plasmid maps (`.gb`) for
-Golden Gate cloning of SpCas9 sgRNAs into lentiviral vectors. Audience: wet-lab scientists.
+Type IIS (restriction-enzyme) cloning of SpCas9 sgRNAs into lentiviral vectors. Audience: wet-lab scientists.
 
 ## Layout
 

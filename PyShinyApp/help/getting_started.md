@@ -25,7 +25,7 @@ Additional columns (e.g. target gene, genomic coordinates, on-target score) are 
 
 See [`example_inputs/sgRNA_seqs/`](https://github.com/anthonyknc/sgrna-oligo-designer/tree/main/example_inputs/sgRNA_seqs) for ready-to-use example files in all three formats.
 
-> **Note:** The tool designs oligos for ***Sp*Cas9** sgRNAs cloned by Type IIS/Golden Gate digestion (*Bsm*BI, Esp3I, *Bsa*I or *Bbs*I). You never type overhangs: they are read from the vector, as explained under **How it works**.
+> **Note:** The tool designs oligos for ***Sp*Cas9** sgRNAs cloned by Type IIS restriction-enzyme digestion (*Bsm*BI, Esp3I, *Bsa*I or *Bbs*I). You never type overhangs: they are read from the vector, as explained under **How it works**.
 
 > **Tip:** The app automatically removes leading, trailing, and internal whitespace from sgRNA sequences and converts them to uppercase. Sequences copied from publications (which may include spaces every 10 bases) or pasted from PDFs are handled correctly.
 

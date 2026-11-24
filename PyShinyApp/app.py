@@ -175,7 +175,7 @@ _TIP_VECTOR = (
     "built in. Choose “Upload my own” for another circular GenBank file.",
 )
 _TIP_ENZYME = (
-    "The Type IIS enzyme used for Golden Gate cloning. The app cuts the vector in silico at the "
+    "The Type IIS enzyme used for sgRNA cloning. The app cuts the vector in silico at the "
     "enzyme's two sites and reads the overhangs from the cuts, so you never type them. The vector "
     "must have exactly two sites for the enzyme you pick.",
 )
