@@ -159,11 +159,9 @@ def test_read_fasta_first_record_only(tmp_path):
     assert sod.read_fasta_sequence(p) == "ACGTAC"
 
 
-def test_cli_end_to_end_and_duplicate_ids(tmp_path):
-    p = tmp_path / "in.csv"
-    p.write_text(f"sgRNA_id,sgRNA_seq\na,{SG}\nb,{SG}\n")
-    sod.main([str(p), "--output", str(tmp_path)])
-    assert (tmp_path / "in_IDT_orderForm.xlsx").exists()
-    p.write_text(f"sgRNA_id,sgRNA_seq\na,{SG}\na,{SG}\n")
-    with pytest.raises(SystemExit):
-        sod.main([str(p), "--output", str(tmp_path)])
+def test_check_unique_ids():
+    sod.check_unique_ids([{"sgRNA_id": "a"}, {"sgRNA_id": "b"}])
+    with pytest.raises(ValueError, match="Duplicate sgRNA IDs"):
+        sod.check_unique_ids([{"sgRNA_id": "a"}, {"sgRNA_id": "a"}])
+    with pytest.raises(ValueError, match="not found"):
+        sod.check_unique_ids([{"x": "a"}])

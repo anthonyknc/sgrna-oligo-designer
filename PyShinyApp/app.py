@@ -19,6 +19,7 @@ from sgrna_oligo_designer import (
     add_cloning_oligos,
     build_idt_rows,
     build_plasmid_records,
+    check_unique_ids,
     read_fasta_sequence,
     read_input,
     read_vector_gb,
@@ -381,9 +382,11 @@ def server(input, output, session):
         else:
             req(input.sgrna_file())
             rows = read_input(Path(input.sgrna_file()[0]["datapath"]))
+        check_unique_ids(rows, id_col=input.id_col())
         return add_cloning_oligos(
             rows,
             seq_col=input.seq_col(),
+            id_col=input.id_col(),
             top_prefix=input.sense_prefix(),
             bot_prefix=input.antisense_prefix(),
             bot_suffix=input.antisense_suffix(),

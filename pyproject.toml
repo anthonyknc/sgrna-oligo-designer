@@ -1,0 +1,30 @@
+[project]
+name = "sgrna-oligo-designer"
+version = "1.0.0"
+description = "Web app that designs sgRNA cloning oligos (IDT order form) and annotated plasmid GenBank files"
+readme = "README.md"
+license = { file = "LICENSE" }
+# Pinned to the Python the app was built and deployed with. Widen deliberately
+# after a test deploy to shinyapps.io.
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "biopython",
+    "openpyxl",
+    "pandas",
+    "jinja2",        # required by pandas Styler, which shiny's render.table uses
+    "shiny",
+    "shinyswatch",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "rsconnect-python",   # deployment to shinyapps.io only; not a runtime dependency
+]
+
+[tool.uv]
+package = false   # an application, not an installable library
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["PyShinyApp"]

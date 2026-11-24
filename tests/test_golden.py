@@ -102,8 +102,18 @@ def test_plasmid_structure(name, table, vector, stuffer):
                 and x.location.end == f.location.end] == [f]
 
 
-def test_root_and_shiny_copies_are_identical():
-    """Temporary guard until the restructure leaves a single copy."""
-    a = (ROOT / "sgrna_oligo_designer.py").read_bytes()
-    b = (ROOT / "PyShinyApp" / "sgrna_oligo_designer.py").read_bytes()
-    assert a == b
+def test_app_bundled_examples_match_repo_examples():
+    """The deploy dir must be self-contained, so it carries its own copies."""
+    bundled = ROOT / "PyShinyApp" / "example_inputs"
+    a = sod.read_vector_gb(bundled / "ipUSEPR.gb")
+    b = sod.read_vector_gb(INPUTS / "vector_seqs" / "ipUSEPR.gb")   # only the export date differs
+    assert str(a.seq) == str(b.seq)
+    assert [(f.type, str(f.location)) for f in a.features] == [(f.type, str(f.location)) for f in b.features]
+    assert _sheet(bundled / "example_sgRNA_seqs.xlsx") == _sheet(INPUTS / "sgRNA_seqs" / "example_sgRNA_seqs.xlsx")
+
+
+def test_app_imports_and_builds():
+    """Smoke test: the Shiny app module imports and exposes an App."""
+    import app
+    from shiny import App
+    assert isinstance(app.app, App)
