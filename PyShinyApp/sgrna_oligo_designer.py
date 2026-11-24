@@ -915,6 +915,29 @@ def build_plasmid_records(
     ]
 
 
+def named_record(record, vector_name: str):
+    """
+    Copy of a plasmid record named '{vector_name}_{sgRNA_id}' (LOCUS name and accession), so that
+    SnapGene and Benchling show the full construct name, e.g. 'ipUSEPR_sg_Luc_474'.
+    """
+    r             = copy.deepcopy(record)
+    full_id       = f"{sanitize_name(vector_name, 'vector')}_{record.id}"
+    r.id          = full_id
+    r.name        = full_id
+    r.description = f"{record.id} cloned into {sanitize_name(vector_name, 'vector')}"
+    return r
+
+
+def genbank_string(records: list) -> str:
+    """Serialise records as GenBank text (one or several records, in memory)."""
+    import io
+    from Bio import SeqIO
+
+    buf = io.StringIO()
+    SeqIO.write(records, buf, "genbank")
+    return buf.getvalue()
+
+
 def write_gb_files(
     records: list,
     output_dir: Path,
@@ -926,32 +949,17 @@ def write_gb_files(
     Write GenBank files, one per sgRNA (default) or a single combined file.
 
     Each record's LOCUS name and accession are set to '{vector_name}_{sgRNA_id}'
-    so that SnapGene and Benchling display the full construct name
-    (e.g. 'ipUSEPR_sg_Luc_474').
+    (see :func:`named_record`).
     """
-    from Bio import SeqIO
-
     output_dir.mkdir(parents=True, exist_ok=True)
-    vector_name   = sanitize_name(vector_name, "vector")
     combined_stem = sanitize_name(combined_stem, "combined_plasmids")
-
-    def _named(record):
-        r             = copy.deepcopy(record)
-        full_id       = f"{vector_name}_{record.id}"
-        r.id          = full_id
-        r.name        = full_id
-        r.description = f"{record.id} cloned into {vector_name}"
-        return r
+    named = [named_record(r, vector_name) for r in records]
 
     if multi_gb:
-        out_path = output_dir / f"{combined_stem}.gb"
-        with open(out_path, "w") as fh:
-            SeqIO.write([_named(r) for r in records], fh, "genbank")
+        (output_dir / f"{combined_stem}.gb").write_text(genbank_string(named))
     else:
-        for record in records:
-            named = _named(record)
-            with open(output_dir / f"{named.id}.gb", "w") as fh:
-                SeqIO.write([named], fh, "genbank")
+        for record in named:
+            (output_dir / f"{record.id}.gb").write_text(genbank_string([record]))
 
 
 # ---------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 """
-app.py  —  sgRNA Oligo Designer v2.0.0
----------------------------------------
-Core shiny mode. Run: shiny run app.py --reload
-Deploy:        rsconnect deploy shiny . --name <account> --title sgrna-oligo-designer
+app.py  —  sgRNA Oligo Designer
+--------------------------------
+Shiny for Python app (Core mode). Run: shiny run app.py --reload
+All design logic lives in sgrna_oligo_designer.py; presentation helpers are in report.py.
 """
 
 from __future__ import annotations
@@ -12,10 +12,18 @@ from pathlib import Path
 
 import pandas as pd
 import shinyswatch
+from faicons import icon_svg
 from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
-from shiny import ui as sui
 
+from report import (
+    bundle_zip,
+    design_template,
+    genbank_zip,
+    oligo_table,
+    oligos_csv,
+    split_spacer,
+)
 from sgrna_oligo_designer import (
     ENZYMES,
     add_cloning_oligos,
@@ -23,12 +31,13 @@ from sgrna_oligo_designer import (
     build_idt_rows,
     build_plasmid_records,
     find_cloning_site,
+    genbank_string,
+    named_record,
     read_input,
     read_vector_gb,
     sanitize_name,
     single_cutters,
     validate_ids,
-    write_gb_files,
     write_idt_excel,
 )
 
@@ -36,7 +45,7 @@ from sgrna_oligo_designer import (
 # Constants
 # ---------------------------------------------------------------------------
 
-_VERSION      = "v2.0.0"
+_VERSION      = "v2.1.0"
 _LAST_UPDATE  = "2026-11-23"   # YYYY-MM-DD; bump together with _VERSION on each release
 _GITHUB_URL   = "https://github.com/anthonyknc/sgrna-oligo-designer"
 _HERE         = Path(__file__).parent
@@ -65,80 +74,6 @@ _ORIENT_CHOICES = {
     "reverse": "Reverse",
 }
 
-# ---------------------------------------------------------------------------
-# Assets
-# ---------------------------------------------------------------------------
-
-_GITHUB_SVG = """
-<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
-     viewBox="0 0 24 24" fill="currentColor" aria-label="GitHub">
-  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207
-  11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033
-  -1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729
-  1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997
-  .107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931
-  0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0
-  1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047
-  .138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874
-  .118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479
-  5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576
-  4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-</svg>
-"""
-
-# SVG icons for the dark mode button
-_MOON_SVG = """
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-     viewBox="0 0 24 24" fill="currentColor">
-  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-</svg>"""
-
-_SUN_SVG = """
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-     viewBox="0 0 24 24" fill="none" stroke="currentColor"
-     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="5"/>
-  <line x1="12" y1="1"  x2="12" y2="3"/>
-  <line x1="12" y1="21" x2="12" y2="23"/>
-  <line x1="4.22"  y1="4.22"  x2="5.64"  y2="5.64"/>
-  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-  <line x1="1"  y1="12" x2="3"  y2="12"/>
-  <line x1="21" y1="12" x2="23" y2="12"/>
-  <line x1="4.22"  y1="19.78" x2="5.64"  y2="18.36"/>
-  <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22"/>
-</svg>"""
-
-_DARK_MODE_JS = """
-Shiny.addCustomMessageHandler('set-theme', function(theme) {
-    document.documentElement.setAttribute('data-bs-theme', theme);
-    var moon = document.getElementById('dm-icon-moon');
-    var sun  = document.getElementById('dm-icon-sun');
-    if (moon && sun) {
-        moon.style.display = (theme === 'dark') ? 'none'   : 'flex';
-        sun.style.display  = (theme === 'dark') ? 'flex'   : 'none';
-    }
-});
-"""
-
-# CSS: spinner on Run button when Shiny is busy
-_BUSY_CSS = """
-#run_btn { transition: opacity 0.2s; position: relative; }
-.shiny-busy #run_btn { opacity: 0.65; cursor: wait; }
-.shiny-busy #run_btn::after {
-    content: "";
-    position: absolute;
-    width: 0.9rem;
-    height: 0.9rem;
-    border: 2px solid rgba(255,255,255,0.7);
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: shiny-spin 0.6s linear infinite;
-    right: 0.7rem;
-    top: 50%;
-    transform: translateY(-50%);
-}
-@keyframes shiny-spin { to { transform: translateY(-50%) rotate(360deg); } }
-"""
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -150,8 +85,8 @@ def _info(title: str, *content, placement: str = "right"):
     touch screens; click again or click elsewhere to close). A real <button>, so it is
     reachable by keyboard and does not trigger the surrounding label's input.
     """
-    return sui.popover(
-        sui.tags.button("?", type="button", class_="info-btn",
+    return ui.popover(
+        ui.tags.button("?", type="button", class_="info-btn",
                         **{"aria-label": f"More information: {title}"}),
         *content,
         title=title,
@@ -162,18 +97,18 @@ def _info(title: str, *content, placement: str = "right"):
 
 def _label(text: str, *tip, title: str | None = None):
     """Input label followed by a click-to-open '?' popover."""
-    return sui.tags.span(text, _info(title or text, *tip))
+    return ui.tags.span(text, _info(title or text, *tip))
 
 
 def _link(text: str, href: str):
-    return sui.tags.a(text, href=href, target="_blank", rel="noopener")
+    return ui.tags.a(text, href=href, target="_blank", rel="noopener")
 
 
 _CRISPICK = "https://portals.broadinstitute.org/gppx/crispick/public"
 
 _TIP_TABLE = (
     "A spreadsheet (.xlsx, .csv or .tsv) with one row per sgRNA and two columns: ",
-    sui.tags.code("sgRNA_id"), " (unique, no spaces) and ", sui.tags.code("sgRNA_seq"),
+    ui.tags.code("sgRNA_id"), " (unique, no spaces) and ", ui.tags.code("sgRNA_seq"),
     " (the 20-nt target sequence, without the PAM or any overhangs). Extra columns are ignored, "
     "and spaces and lowercase are cleaned automatically. Design guides with ",
     _link("CRISPick", _CRISPICK), ". More under Guide → Getting started.",
@@ -216,7 +151,7 @@ _TIP_SITE = (
 
 def _guide(name: str):
     """Render one of the help/*.md files (the single source of truth for the guide)."""
-    return sui.markdown((_HERE / "help" / f"{name}.md").read_text(encoding="utf-8"))
+    return ui.markdown((_HERE / "help" / f"{name}.md").read_text(encoding="utf-8"))
 
 
 # Close any open info popover on an outside click or Escape. (Bootstrap's click trigger only
@@ -239,262 +174,272 @@ _INFO_JS = """
 })();
 """
 
-_INFO_CSS = """
-.info-btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 1.15rem; height: 1.15rem; margin-left: 0.4rem; padding: 0;
-    border: 1px solid #adb5bd; border-radius: 50%; background: transparent;
-    color: #6c757d; font-size: 0.7rem; font-weight: 700; line-height: 1;
-    cursor: pointer; vertical-align: middle;
-}
-.info-btn:hover, .info-btn:focus-visible { color: #fff; background: #6c757d; border-color: #6c757d; }
+
+# ---------------------------------------------------------------------------
+# Styling (uses Bootstrap variables, so it follows light/dark mode automatically)
+# ---------------------------------------------------------------------------
+
+def _fa(name: str, **kw):
+    """Font Awesome icon that sits nicely inline with text."""
+    return icon_svg(name, margin_left="0", margin_right="0.45em", **kw)
+
+
+_CSS = """
+:root { --brand: #0f766e; --brand-bg: rgba(15,118,110,.12); }
+[data-bs-theme="dark"] { --brand: #5eead4; --brand-bg: rgba(94,234,212,.16); }
+body { font-feature-settings: "cv11", "ss01"; }
+.navbar-brand { font-weight: 650; letter-spacing: -0.01em; display: inline-flex; align-items: center; }
+.navbar-brand .badge { font-size: 0.62rem; font-weight: 600; margin-left: 0.6rem; vertical-align: middle; }
+.card { border: 1px solid var(--bs-border-color); border-radius: 0.85rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.card-header { font-weight: 600; display: flex; align-items: center; gap: .5rem;
+               background: transparent; border-bottom: 1px solid var(--bs-border-color); }
+.card-header .header-actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: .4rem; }
+.bslib-sidebar-layout > .sidebar { background: var(--bs-tertiary-bg); }
+.sidebar .accordion-button { font-weight: 600; padding: .7rem .9rem; }
+.sidebar .accordion-body { padding: .8rem .9rem 1rem; }
+.sidebar .form-label, .sidebar label { font-size: .86rem; }
+#run_btn { font-weight: 600; letter-spacing: .01em; }
+.shiny-busy #run_btn { opacity: .65; cursor: wait; }
+.mono, code.mono, .tpl code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.chip { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .65rem; margin: .15rem .3rem .15rem 0;
+        border-radius: 999px; font-size: .82rem; background: var(--bs-tertiary-bg);
+        border: 1px solid var(--bs-border-color); }
+.chip .k { color: var(--bs-secondary-color); }
+.chip code { color: inherit; background: transparent; padding: 0; font-weight: 600; }
+.status-ok { border-left: 4px solid var(--bs-success); }
+.status-bad { border-left: 4px solid var(--bs-danger); }
+.tpl { margin-top: .6rem; padding: .7rem .9rem; border-radius: .6rem; background: var(--bs-tertiary-bg);
+       border: 1px dashed var(--bs-border-color); }
+.tpl-row { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+.tpl-label { min-width: 5.2rem; font-size: .78rem; color: var(--bs-secondary-color); text-transform: uppercase;
+             letter-spacing: .04em; }
+.tpl code { font-size: .92rem; color: var(--bs-body-color); background: transparent; padding: 0; word-break: break-all; }
+.tpl-spacer { color: var(--brand); font-weight: 700; background: var(--brand-bg); border-radius: .25rem; padding: 0 .15rem; }
+.empty-state { text-align: center; padding: 3rem 1rem; color: var(--bs-secondary-color); }
+.empty-state svg { width: 2.6rem; height: 2.6rem; color: var(--brand); margin-bottom: .8rem; }
+.bslib-value-box { min-height: 0 !important; }
+.bslib-value-box .value-box-showcase svg { width: 2rem; height: 2rem; }
+.bslib-value-box .value-box-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; opacity: .9; }
+.bslib-value-box .value-box-value { font-size: 1.7rem; }
+.empty-state h5 { color: var(--bs-body-color); }
+.empty-state ol { display: inline-block; text-align: left; margin-top: .4rem; }
+.bslib-value-box .value-box-value { font-weight: 700; }
+.info-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem;
+            margin-left: 0.4rem; padding: 0; border: 1px solid var(--bs-secondary-color); border-radius: 50%;
+            background: transparent; color: var(--bs-secondary-color); font-size: 0.7rem; font-weight: 700;
+            line-height: 1; cursor: pointer; vertical-align: middle; }
+.info-btn:hover, .info-btn:focus-visible { color: var(--bs-body-bg); background: var(--bs-secondary-color); }
 .popover { max-width: 320px; }
-.guide h1 { font-size: 1.6rem; margin-bottom: 1rem; }
-.guide h2 { font-size: 1.25rem; margin-top: 1.75rem; }
-.guide { max-width: 52rem; }
+.guide { max-width: 54rem; }
+.guide h1 { font-size: 1.7rem; margin-bottom: 1rem; }
+.guide h2 { font-size: 1.25rem; margin-top: 1.9rem; }
+.guide table { width: 100%; margin: 1rem 0; border-collapse: collapse; }
+.guide th, .guide td { padding: .45rem .7rem; border-bottom: 1px solid var(--bs-border-color); vertical-align: top; }
+.guide th { font-weight: 600; text-align: left; background: var(--bs-tertiary-bg); text-transform: none; }
+.guide .nav-pills .nav-link, .nav-pills .nav-link:not(.active) { color: var(--bs-body-color); }
+.guide code, .guide pre { overflow-wrap: anywhere; }
+.hint { color: var(--bs-secondary-color); }
+.app-footer { text-align: center; color: var(--bs-secondary-color); font-size: .8rem; padding: 1.5rem 0 1rem; }
 """
 
-
-# ---------------------------------------------------------------------------
-# Title bar
-# ---------------------------------------------------------------------------
-
-_TITLE = sui.tags.div(
-    sui.tags.span("sgRNA Oligo Designer", style="font-weight:600;"),
-    sui.tags.span(
-        _VERSION,
-        style="font-size:0.7em; color:#6c757d; margin-left:0.5em; vertical-align:middle;",
-    ),
-    sui.tags.a(
-        sui.HTML(_GITHUB_SVG),
-        href=_GITHUB_URL,
-        target="_blank",
-        title="View on GitHub",
-        style="margin-left:0.75em; color:inherit; vertical-align:middle; opacity:0.75;",
-    ),
-    style="display:flex; align-items:center;",
-)
 
 # ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
 
-app_ui = sui.page_sidebar(
+_TITLE = ui.tags.span(
+    _fa("dna"), "sgRNA Oligo Designer",
+    ui.tags.span(_VERSION, class_="badge text-bg-secondary rounded-pill"),
+)
 
-    sui.sidebar(
 
-        # --- Load example ---
-        sui.input_action_button(
-            "example_btn",
-            "⚡ Load example sgRNAs",
-            class_="btn-outline-secondary w-100",
-        ),
-
-        sui.hr(),
-
-        # --- Step 1 ---
-        sui.h6("Step 1 — sgRNA table"),
-        sui.input_file(
-            "sgrna_file",
-            _label("Upload sgRNA table", *_TIP_TABLE, title="sgRNA table"),
-            accept=[".xlsx", ".xlsm", ".csv", ".tsv"],
-        ),
-
-        sui.hr(),
-
-        # --- Step 2 ---
-        sui.h6("Step 2 — Vector and enzyme"),
-        sui.input_select(
-            "vector_choice",
-            _label("Vector", *_TIP_VECTOR),
-            {**{k: v[0] for k, v in _VECTORS.items()}, _UPLOAD: "Upload my own vector (.gb)…"},
-        ),
-        sui.panel_conditional(
-            f"input.vector_choice == '{_UPLOAD}'",
-            sui.input_file(
-                "vector_file",
-                "Upload empty vector (.gb / .gbk)",
-                accept=[".gb", ".gbk"],
-            ),
-        ),
-        sui.input_radio_buttons(
-            "enzyme_mode",
-            _label("Cloning enzymes", *_TIP_MODE),
-            {"one": "One enzyme (cuts the vector twice)", "two": "Two different enzymes (each cuts once)"},
-            selected="one",
-        ),
-        sui.panel_conditional(
-            "input.enzyme_mode == 'one'",
-            sui.input_select(
-                "enzyme",
-                _label("Restriction enzyme", *_TIP_ENZYME),
-                {**{e: _ENZYME_LABELS.get(e, e) for e in ENZYMES}, _OTHER: "Other…"},
-            ),
-            sui.panel_conditional(
-                f"input.enzyme == '{_OTHER}'",
-                sui.input_selectize(
-                    "other_enzyme",
-                    "Search all enzymes",
-                    {n: f"{n}  ({e.site}, {e.overhang_len}-nt overhang)" for n, e in all_enzymes().items()},
-                    selected="SapI",
+def _sidebar():
+    return ui.sidebar(
+        ui.input_action_button("example_btn", [_fa("flask"), "Load example sgRNAs"],
+                               class_="btn-outline-primary w-100"),
+        ui.accordion(
+            ui.accordion_panel(
+                "1 · sgRNA table",
+                ui.input_file(
+                    "sgrna_file",
+                    _label("Upload sgRNA table", *_TIP_TABLE, title="sgRNA table"),
+                    accept=[".xlsx", ".xlsm", ".csv", ".tsv"],
+                    button_label="Browse…", placeholder=".xlsx, .csv or .tsv",
                 ),
+                value="table", icon=_fa("table"),
             ),
-        ),
-        sui.panel_conditional(
-            "input.enzyme_mode == 'two'",
-            sui.input_selectize("enzyme_a", "Enzyme 1 (cuts once)", {"": "Choose an enzyme…"}),
-            sui.input_selectize("enzyme_b", "Enzyme 2 (cuts once)", {"": "Choose an enzyme…"}),
-        ),
-        sui.input_text(
-            "vector_name",
-            _label("Vector name (optional)",
-                   "Name prepended to each plasmid name in the GenBank file. "
-                   "Defaults to the vector name or the uploaded file's name."),
-            placeholder="Default: vector name",
-        ),
-        sui.input_text(
-            "combined_name",
-            _label("Combined .gb filename stem",
-                   "The combined GenBank file will be named <stem>.gb."),
-            value="combined_plasmids",
-        ),
-
-        sui.hr(),
-
-        # --- Advanced options (collapsible) ---
-        sui.accordion(
-            sui.accordion_panel(
-                "⚙ Advanced options",
-                sui.input_text(
-                    "seq_col",
-                    _label("sgRNA sequence column",
-                           "Column name in your input file containing the 20-nt sgRNA target sequences."),
-                    value="sgRNA_seq",
+            ui.accordion_panel(
+                "2 · Vector & enzymes",
+                ui.input_select(
+                    "vector_choice",
+                    _label("Vector", *_TIP_VECTOR),
+                    {**{k: v[0] for k, v in _VECTORS.items()}, _UPLOAD: "Upload my own vector (.gb)…"},
                 ),
-                sui.input_text(
+                ui.panel_conditional(
+                    f"input.vector_choice == '{_UPLOAD}'",
+                    ui.input_file("vector_file", "Upload empty vector (.gb / .gbk)",
+                                  accept=[".gb", ".gbk"], button_label="Browse…", placeholder=".gb or .gbk"),
+                ),
+                ui.input_radio_buttons(
+                    "enzyme_mode",
+                    _label("Cloning enzymes", *_TIP_MODE),
+                    {"one": "One enzyme (cuts the vector twice)", "two": "Two different enzymes (each cuts once)"},
+                    selected="one",
+                ),
+                ui.panel_conditional(
+                    "input.enzyme_mode == 'one'",
+                    ui.input_select(
+                        "enzyme",
+                        _label("Restriction enzyme", *_TIP_ENZYME),
+                        {**{e: _ENZYME_LABELS.get(e, e) for e in ENZYMES}, _OTHER: "Other…"},
+                    ),
+                    ui.panel_conditional(
+                        f"input.enzyme == '{_OTHER}'",
+                        ui.input_selectize(
+                            "other_enzyme", "Search all enzymes",
+                            {n: f"{n}  ({e.site}, {e.overhang_len}-nt overhang)" for n, e in all_enzymes().items()},
+                            selected="SapI",
+                        ),
+                    ),
+                ),
+                ui.panel_conditional(
+                    "input.enzyme_mode == 'two'",
+                    ui.input_selectize("enzyme_a", "Enzyme 1 (cuts once)", {"": "Choose an enzyme…"}),
+                    ui.input_selectize("enzyme_b", "Enzyme 2 (cuts once)", {"": "Choose an enzyme…"}),
+                ),
+                value="vector", icon=_fa("scissors"),
+            ),
+            ui.accordion_panel(
+                "3 · Advanced options",
+                ui.input_text(
                     "id_col",
                     _label("sgRNA ID column",
                            "Column name in your input file containing unique sgRNA identifiers."),
                     value="sgRNA_id",
                 ),
-                sui.panel_conditional(
+                ui.input_text(
+                    "seq_col",
+                    _label("sgRNA sequence column",
+                           "Column name in your input file containing the 20-nt sgRNA target sequences."),
+                    value="sgRNA_seq",
+                ),
+                ui.panel_conditional(
                     "input.enzyme_mode == 'two'",
-                    sui.input_text("left_extra", _label("Bases before the spacer", *_TIP_FLANK, title="Flanking bases"),
-                                   placeholder="auto"),
-                    sui.input_text("right_extra", _label("Bases after the spacer", *_TIP_FLANK, title="Flanking bases"),
-                                   placeholder="auto"),
+                    ui.input_text("left_extra", _label("Bases before the spacer", *_TIP_FLANK, title="Flanking bases"),
+                                  placeholder="auto"),
+                    ui.input_text("right_extra", _label("Bases after the spacer", *_TIP_FLANK, title="Flanking bases"),
+                                  placeholder="auto"),
                 ),
-                sui.input_radio_buttons(
-                    "g_mode",
-                    _label("5' G for U6 transcription", *_TIP_G),
-                    _G_CHOICES,
-                    selected="always",
-                ),
-                sui.input_select(
+                ui.input_radio_buttons("g_mode", _label("5' G for U6 transcription", *_TIP_G),
+                                       _G_CHOICES, selected="always"),
+                ui.input_select(
                     "orientation",
                     _label("sgRNA orientation in the vector",
                            "Which strand of the GenBank file the sgRNA is transcribed from. "
                            "Auto-detect looks for the start of the Cas9 scaffold (GTTT)."),
                     _ORIENT_CHOICES,
                 ),
-            ),
-            open=False,
-        ),
-
-        sui.hr(),
-        sui.input_action_button("run_btn", "Run", class_="btn-primary w-100"),
-
-        width=320,
-    ),
-
-    # --- Dark mode toggle: circular icon button, top-right of navbar ---
-    sui.tags.div(
-        sui.input_action_button(
-            "dark_mode_btn",
-            sui.HTML(
-                f'<span id="dm-icon-moon" style="display:flex;">'
-                f'{_MOON_SVG}</span>'
-                f'<span id="dm-icon-sun" style="display:none;">'
-                f'{_SUN_SVG}</span>'
-            ),
-            title="Toggle dark / light mode",
-            style=(
-                "width:2.2rem; height:2.2rem; padding:0; border-radius:50%;"
-                " background:transparent;"
-                " border:1px solid rgba(128,128,128,0.3);"
-                " cursor:pointer; display:inline-flex;"
-                " align-items:center; justify-content:center;"
-                " color:inherit; transition:border-color 0.2s, opacity 0.2s;"
-            ),
-        ),
-        style="position:fixed; top:0.5rem; right:0.75rem; z-index:1031;",
-    ),
-
-    # --- JS & CSS ---
-    sui.tags.script(_DARK_MODE_JS),
-    sui.tags.script(_INFO_JS),
-    sui.tags.style(_BUSY_CSS + _INFO_CSS),
-
-    # --- Main panel: Designer + Guide tabs ---
-    sui.navset_tab(
-        sui.nav_panel("Designer", sui.tags.div(
-        sui.h4("Cloning site", _info("Cloning site", *_TIP_SITE, placement="bottom")),
-        sui.output_ui("site_info"),
-        sui.output_ui("stale_notice"),
-
-        sui.h4("Summary"),
-        sui.output_text("summary"),
-        sui.output_ui("warnings_ui"),
-
-        sui.hr(),
-        sui.h4("IDT order form preview"),
-        sui.output_table("idt_table"),
-
-        sui.hr(),
-        sui.h4("Downloads"),
-        sui.h6("IDT Bulk Order Form (.xlsx)"),
-        sui.download_button("download_idt", "Download IDT Order Form"),
-        sui.h6("Combined GenBank File (.gb)"),
-        sui.download_button("download_gb", "Download Combined GenBank")
-        , style="padding-top:1rem;")),
-        sui.nav_panel(
-            "Guide",
-            sui.tags.div(
-                sui.navset_pill(
-                    sui.nav_panel("Getting started", sui.tags.div(_guide("getting_started"), class_="guide")),
-                    sui.nav_panel("How it works", sui.tags.div(_guide("how_it_works"), class_="guide")),
-                    sui.nav_panel("Troubleshooting", sui.tags.div(_guide("troubleshooting"), class_="guide")),
-                    sui.nav_panel("Citing", sui.tags.div(_guide("citing"), class_="guide")),
+                ui.input_text(
+                    "vector_name",
+                    _label("Vector name (optional)",
+                           "Name prepended to each plasmid name in the GenBank files. "
+                           "Defaults to the vector name or the uploaded file's name."),
+                    placeholder="Default: vector name",
                 ),
-                style="padding-top:1rem;",
+                ui.input_text(
+                    "combined_name",
+                    _label("Combined .gb filename stem", "The combined GenBank file will be named <stem>.gb."),
+                    value="combined_plasmids",
+                ),
+                value="advanced", icon=_fa("gear"),
             ),
+            id="sidebar_acc", open=["table", "vector"], multiple=True,
         ),
-    ),
+        ui.input_action_button("run_btn", [_fa("play"), "Design oligos"], class_="btn-primary btn-lg w-100"),
+        width=390, gap="1rem",
+    )
 
-    # --- Footer ---
-    sui.tags.div(
-        sui.tags.hr(),
-        sui.tags.p(
-            "© 2026 Anthony Chan · ",
-            sui.tags.a("GitHub", href=_GITHUB_URL, target="_blank"),
-            " · MIT License",
-            style="text-align:center; color:#6c757d; font-size:0.8em; margin:0;",
-        ),
-        sui.tags.p(
-            f"Last Update: {_LAST_UPDATE}",
-            style="text-align:center; color:#6c757d; font-size:0.8em; margin:0.25rem 0 0;",
-        ),
-        style="margin-top:2rem; padding-bottom:1rem;",
-    ),
 
+def _design_page():
+    return ui.layout_sidebar(
+        _sidebar(),
+        ui.card(
+            ui.card_header(_fa("scissors"), "Cloning site", _info("Cloning site", *_TIP_SITE, placement="bottom")),
+            ui.output_ui("site_info"),
+        ),
+        ui.output_ui("stale_notice"),
+        ui.output_ui("results_ui"),
+        fillable=False, fill=False,
+    )
+
+
+def _guide_page():
+    def page(name: str, title: str):
+        return ui.nav_panel(title, ui.div(_guide(name), class_="guide"))
+    return ui.div(
+        ui.navset_pill_list(
+            page("getting_started", "Getting started"),
+            page("how_it_works", "How it works"),
+            page("troubleshooting", "Troubleshooting"),
+            page("citing", "Citing"),
+            widths=(3, 9),
+        ),
+        style="padding-top: 1rem;",
+    )
+
+
+app_ui = ui.page_navbar(
+    ui.nav_panel("Design", _design_page(), icon=_fa("dna"), value="design"),
+    ui.nav_panel("Guide", _guide_page(), icon=_fa("book-open"), value="guide"),
+    ui.nav_spacer(),
+    ui.nav_control(ui.tags.a(icon_svg("github", margin_left="0", margin_right="0"), href=_GITHUB_URL,
+                             target="_blank", rel="noopener", class_="nav-link", title="View on GitHub",
+                             **{"aria-label": "View on GitHub"})),
+    ui.nav_control(ui.input_dark_mode(id="dark_mode")),
     title=_TITLE,
-    theme=shinyswatch.theme.flatly(),
+    id="main_nav",
+    footer=ui.div(
+        ui.tags.hr(),
+        ui.p("© 2026 Anthony Chan · ", ui.tags.a("GitHub", href=_GITHUB_URL, target="_blank", rel="noopener"),
+             " · MIT License"),
+        ui.p(f"{_VERSION} · Last Update: {_LAST_UPDATE}", class_="mb-0"),
+        class_="app-footer",
+    ),
+    header=ui.head_content(ui.tags.style(_CSS), ui.tags.script(_INFO_JS)),
+    theme=shinyswatch.theme.zephyr(),
+    window_title="sgRNA Oligo Designer",
+    lang="en",
+    fillable=False,
 )
 
 
 # ---------------------------------------------------------------------------
 # Server
 # ---------------------------------------------------------------------------
+
+def _chip(label: str, value: str):
+    return ui.span(ui.span(label, class_="k"), ui.tags.code(value), class_="chip")
+
+
+def _empty_state():
+    return ui.card(
+        ui.div(
+            icon_svg("dna", margin_left="0", margin_right="0"),
+            ui.h5("Design your oligos"),
+            ui.tags.ol(
+                ui.tags.li("Upload your sgRNA table, or load the example."),
+                ui.tags.li("Choose your vector and cloning enzymes."),
+                ui.tags.li(["Click ", ui.tags.strong("Design oligos"), "."]),
+            ),
+            class_="empty-state",
+        )
+    )
+
+
+def _alert(kind: str, *children):
+    return ui.div(*children, class_=f"alert alert-{kind}", role="alert")
+
 
 def server(input, output, session):
 
@@ -538,28 +483,12 @@ def server(input, output, session):
         if _ran():
             _stale.set(True)
 
-    @output
     @render.ui
     def stale_notice():
         if _stale():
-            return sui.tags.div(
-                "Settings changed since the last run. Click Run to update the results.",
-                class_="alert alert-info", role="alert",
-            )
-
-    # --- Dark mode ---
-
-    _dark = reactive.value(False)
-
-    @reactive.effect
-    @reactive.event(input.dark_mode_btn)
-    async def _apply_theme():
-        if input.dark_mode_btn() > 0:   # ignore initial value of 0
-            new_state = not _dark()
-            _dark.set(new_state)
-            await session.send_custom_message(
-                "set-theme", "dark" if new_state else "light"
-            )
+            return _alert("info", _fa("circle-info"),
+                          "Settings changed since the last run. Click ", ui.tags.strong("Design oligos"),
+                          " to update the results.")
 
     # --- Vector and cloning site (live: updates as soon as the selection changes) ---
 
@@ -632,38 +561,56 @@ def server(input, output, session):
         ui.update_text("left_extra", placeholder=f"auto: {site.left_extra or '(none)'}")
         ui.update_text("right_extra", placeholder=f"auto: {site.right_extra or '(none)'}")
 
-    @output
     @render.ui
     def site_info():
         try:
             site = cloning_site()
         except SilentException:
-            return sui.tags.p("Choose the two enzymes to see the cloning site.", style="color:#6c757d;")
+            return ui.p("Choose the two enzymes to see the cloning site.", class_="hint mb-0")
         except Exception as e:
             if input.vector_choice() == _UPLOAD and not input.vector_file():
-                return sui.tags.p("Upload a vector GenBank file to see its cloning site.",
-                                  style="color:#6c757d;")
-            return sui.tags.div(str(e), class_="alert alert-danger", role="alert")
-        cuts = "cuts the vector once each" if site.enzyme_b else "cuts the vector at two sites"
-        flanks = []
-        if site.left_extra or site.right_extra:
-            flanks = [
-                " Constant bases added around the spacer: ",
-                sui.tags.code(site.left_extra or "–"), " before and ",
-                sui.tags.code(site.right_extra or "–"), " after.",
-            ]
-        items = [
-            sui.tags.div(
-                sui.tags.strong(f"✓ {site.enzymes}"), f" {cuts}. ",
-                "Overhangs: ", sui.tags.code(site.left_overhang), f" ({site.left_kind} overhang, left) and ",
-                sui.tags.code(site.right_overhang), f" ({site.right_kind} overhang, right). ",
-                f"{site.removed_length} bp between the cuts are replaced by the sgRNA. "
-                f"Orientation: {site.orientation}.", *flanks,
-                class_="alert alert-success", role="alert",
-            )
+                return ui.p("Upload a vector GenBank file to see its cloning site.", class_="hint mb-0")
+            return _alert("danger", _fa("circle-xmark"), str(e))
+
+        chips = [
+            _chip("Enzyme" + ("s" if site.enzyme_b else ""), site.enzymes),
+            _chip("Left overhang", f"{site.left_overhang} ({site.left_kind})"),
+            _chip("Right overhang", f"{site.right_overhang} ({site.right_kind})"),
+            _chip("Replaced", f"{site.removed_length} bp"),
+            _chip("Orientation", site.orientation),
         ]
-        items += [sui.tags.div(w, class_="alert alert-warning", role="alert") for w in site.warnings]
-        return sui.TagList(*items)
+        if site.left_extra or site.right_extra:
+            chips += [_chip("Bases before spacer", site.left_extra or "–"),
+                      _chip("Bases after spacer", site.right_extra or "–")]
+
+        top, bottom = design_template(site, input.g_mode())
+
+        def tpl_row(label, template):
+            pre, spacer, post = split_spacer(template)
+            return ui.div(
+                ui.span(label, class_="tpl-label"),
+                ui.tags.code("5′-", pre, ui.span(spacer, class_="tpl-spacer"), post, "-3′"),
+                class_="tpl-row",
+            )
+
+        note = (" The G is added only when the sgRNA does not already start with one."
+                if input.g_mode() == "if_needed" else "")
+        return ui.TagList(
+            ui.div(
+                ui.div(_fa("circle-check", fill="var(--bs-success)"),
+                       "The vector was digested in silico.", class_="mb-2 fw-semibold"),
+                ui.div(*chips),
+                ui.div(
+                    tpl_row("Sense", top), tpl_row("Antisense", bottom),
+                    ui.div(["Oligo design for a 20-nt spacer (", ui.span("N", class_="tpl-spacer"),
+                            f" = your spacer; everything else comes from the vector).{note}"],
+                           class_="hint small mt-1"),
+                    class_="tpl",
+                ),
+                class_="status-ok ps-3",
+            ),
+            *[_alert("warning", _fa("triangle-exclamation"), w) for w in site.warnings],
+        )
 
     # --- Reactive calculations (run on Run / example clicks) ---
 
@@ -677,11 +624,7 @@ def server(input, output, session):
             rows = read_input(Path(input.sgrna_file()[0]["datapath"]))
         validate_ids(rows, id_col=input.id_col())
         return add_cloning_oligos(
-            rows,
-            cloning_site(),
-            seq_col=input.seq_col(),
-            id_col=input.id_col(),
-            g_mode=input.g_mode(),
+            rows, cloning_site(), seq_col=input.seq_col(), id_col=input.id_col(), g_mode=input.g_mode(),
         )
 
     @reactive.calc
@@ -693,11 +636,8 @@ def server(input, output, session):
     @reactive.event(input.run_btn, input.example_btn)
     def plasmid_records():
         return build_plasmid_records(
-            processed_rows(),
-            vector_record(),
-            cloning_site(),
-            seq_col=input.seq_col(),
-            id_col=input.id_col(),
+            processed_rows(), vector_record(), cloning_site(),
+            seq_col=input.seq_col(), id_col=input.id_col(),
         )
 
     def _all_warnings() -> list[str]:
@@ -713,93 +653,128 @@ def server(input, output, session):
             n     = len(processed_rows())
             warns = _all_warnings()
             ui.notification_show(
-                f"✓ Processed {n} sgRNA sequences → {n * 2} oligos"
-                + (f" ({len(warns)} warning(s), see below)" if warns else ""),
-                type="warning" if warns else "message",
-                duration=4,
+                f"Designed {n * 2} oligos for {n} sgRNAs" + (f" ({len(warns)} warning(s))" if warns else ""),
+                type="warning" if warns else "message", duration=4,
             )
         except SilentException:
             ui.notification_show(
                 "Upload an sgRNA table (or click Load example sgRNAs), and a vector file if you chose "
-                "'Upload my own', then click Run.",
+                "'Upload my own', then click Design oligos.",
                 type="warning", duration=6,
             )
         except Exception as e:
             ui.notification_show(str(e), type="error", duration=8)
 
-    # --- Outputs ---
+    # --- Results ---
 
-    @output
-    @render.text
-    def summary():
-        req(not _stale())
-        req(processed_rows())
-        n = len(processed_rows())
-        return (
-            f"Processed {n} sgRNA sequences "
-            f"→ {n * 2} oligos ({n} sense + {n} antisense) | GenBank file ready"
-        )
-
-    @output
     @render.ui
-    def warnings_ui():
-        req(not _stale())
-        req(processed_rows())
-        warns = _all_warnings()
-        if not warns:
+    def results_ui():
+        if _stale():
             return None
-        return sui.tags.div(
-            sui.tags.strong(f"{len(warns)} warning(s)"),
-            sui.tags.ul(*[sui.tags.li(w) for w in warns]),
-            class_="alert alert-warning", role="alert",
+        try:
+            rows = processed_rows()
+            warns = _all_warnings()
+        except SilentException:
+            return _empty_state()
+        except Exception as e:
+            return _alert("danger", _fa("circle-xmark"), str(e))
+
+        n = len(rows)
+        boxes = ui.layout_columns(
+            ui.value_box("sgRNAs", f"{n}", showcase=icon_svg("dna", margin_left="0", margin_right="0"),
+                         theme="primary", height="105px"),
+            ui.value_box("Oligos to order", f"{2 * n}",
+                         showcase=icon_svg("vial", margin_left="0", margin_right="0"), theme="primary",
+                         height="105px"),
+            ui.value_box("Warnings", f"{len(warns)}" if warns else "None",
+                         showcase=icon_svg("triangle-exclamation" if warns else "circle-check",
+                                           margin_left="0", margin_right="0"),
+                         theme="warning" if warns else "success", height="105px"),
+            col_widths=(4, 4, 4), fill=False,
+        )
+        warn_alert = _alert(
+            "warning", ui.tags.strong(f"{len(warns)} warning(s)"),
+            ui.tags.ul(*[ui.tags.li(w) for w in warns], class_="mb-0"),
+        ) if warns else None
+        downloads = ui.div(
+            ui.download_button("download_all", "Everything (.zip)", icon=_fa("file-zipper"),
+                               class_="btn-primary btn-sm"),
+            ui.download_button("download_idt", "IDT order form", icon=_fa("file-excel"),
+                               class_="btn-outline-primary btn-sm"),
+            ui.download_button("download_gb", "GenBank (.gb)", icon=_fa("dna"),
+                               class_="btn-outline-primary btn-sm"),
+            ui.download_button("download_zip", "Per-sgRNA GenBank (.zip)", icon=_fa("file-zipper"),
+                               class_="btn-outline-primary btn-sm"),
+            ui.download_button("download_csv", "Oligos (.csv)", icon=_fa("file-csv"),
+                               class_="btn-outline-primary btn-sm"),
+            class_="header-actions",
+        )
+        return ui.TagList(
+            boxes, warn_alert,
+            ui.card(
+                ui.card_header(_fa("table"), "Oligos", downloads),
+                ui.output_data_frame("results_grid"),
+                full_screen=True,
+            ),
         )
 
-    @output
-    @render.table
-    def idt_table():
+    @render.data_frame
+    def results_grid():
         req(not _stale())
-        req(idt_rows())
-        return pd.DataFrame(idt_rows())
+        rows = processed_rows()
+        df = pd.DataFrame(oligo_table(rows, id_col=input.id_col(), seq_col=input.seq_col()))
+        df = df.drop(columns=["Spacer (5'→3')"]).rename(columns={"sgRNA": "ID"})
+        flagged = [i for i, r in enumerate(rows) if r["warnings"]]
+        styles = [{"cols": [1, 2], "style": {"font-family": "ui-monospace, Menlo, monospace", "font-size": "0.84rem"}}]
+        if flagged:
+            styles.append({"rows": flagged, "class": "table-warning"})
+        return render.DataGrid(df, width="100%", summary=False, styles=styles)
 
     # --- Downloads with dynamic filenames ---
 
-    @render.download(
-        filename=lambda: (
-            "example_sgRNA_seqs_IDT_orderForm.xlsx"
-            if _use_example()
-            else f"{sanitize_name(Path(input.sgrna_file()[0]['name']).stem, 'sgRNA')}_IDT_orderForm.xlsx"
-            if input.sgrna_file()
-            else "IDT_orderForm.xlsx"
-        )
-    )
+    def _base_name() -> str:
+        if _use_example():
+            return "example_sgRNA_seqs"
+        f = input.sgrna_file()
+        return sanitize_name(Path(f[0]["name"]).stem, "sgRNA") if f else "sgRNA"
+
+    @render.download(filename=lambda: f"{_base_name()}_IDT_orderForm.xlsx")
     def download_idt():
         req(not _stale())
         req(idt_rows())
-        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
-            tmp_path = Path(tmp.name)
-        try:
-            write_idt_excel(idt_rows(), tmp_path)
-            yield tmp_path.read_bytes()
-        finally:
-            tmp_path.unlink(missing_ok=True)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "order.xlsx"
+            write_idt_excel(idt_rows(), path)
+            yield path.read_bytes()
 
-    @render.download(
-        filename=lambda: f"{sanitize_name(input.combined_name(), 'combined_plasmids')}.gb"
-    )
+    @render.download(filename=lambda: f"{sanitize_name(input.combined_name(), 'combined_plasmids')}.gb")
     def download_gb():
         req(not _stale())
         req(plasmid_records())
-        vector_name  = vector_label()
-        combined_stem = sanitize_name(input.combined_name(), "combined_plasmids")
+        yield genbank_string([named_record(r, vector_label()) for r in plasmid_records()]).encode()
+
+    @render.download(filename=lambda: f"{vector_label()}_plasmids.zip")
+    def download_zip():
+        req(not _stale())
+        req(plasmid_records())
+        yield genbank_zip(plasmid_records(), vector_label())
+
+    @render.download(filename=lambda: f"{_base_name()}_oligos.csv")
+    def download_csv():
+        req(not _stale())
+        req(processed_rows())
+        yield oligos_csv(processed_rows(), id_col=input.id_col(), seq_col=input.seq_col())
+
+    @render.download(filename=lambda: f"{_base_name()}_{vector_label()}_design.zip")
+    def download_all():
+        req(not _stale())
+        req(plasmid_records())
         with tempfile.TemporaryDirectory() as tmp_dir:
-            write_gb_files(
-                plasmid_records(),
-                output_dir=Path(tmp_dir),
-                vector_name=vector_name,
-                multi_gb=True,
-                combined_stem=combined_stem,
+            yield bundle_zip(
+                idt_rows(), processed_rows(), plasmid_records(), vector_label(),
+                sanitize_name(input.combined_name(), "combined_plasmids"), Path(tmp_dir) / "order.xlsx",
+                id_col=input.id_col(), seq_col=input.seq_col(),
             )
-            yield (Path(tmp_dir) / f"{combined_stem}.gb").read_bytes()
 
 
 # ---------------------------------------------------------------------------

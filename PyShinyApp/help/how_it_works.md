@@ -58,16 +58,18 @@ evidence rather than proof, and note that tolerance depends on the sequence.
 
 ## Outputs explained
 
-The app gives you two downloads:
+The results table shows each sgRNA with its sense and antisense oligo, their lengths, GC content and any
+warnings. Above it, the **Cloning site** card shows the oligo design for a 20-nt spacer, so you can compare it
+with your vector's protocol. The download buttons give you:
 
-```
-example_sgRNA_seqs_IDT_orderForm.xlsx   ← Upload this to IDT to order oligos
-combined_plasmids.gb                    ← Open in SnapGene or Benchling
-```
+- **Everything (.zip)**: all of the files below in one go
+- **IDT order form (.xlsx)**: upload this to IDT to order the oligos
+- **GenBank (.gb)**: one file with a record for every sgRNA construct, to open in SnapGene or Benchling
+- **Per-sgRNA GenBank (.zip)**: the same records as one file per sgRNA
+- **Oligos (.csv)**: the oligo table as plain text
 
-The combined `.gb` holds one record per sgRNA (e.g. `ipUSEPR_sg_Luc_474`,
-`ipUSEPR_sg_Ren_55`, ...). Examples of both outputs are in
-[`example_outputs/`](https://github.com/anthonyknc/sgrna-oligo-designer/tree/main/example_outputs).
+Examples of the order form and GenBank outputs are in the
+[`example_outputs`](https://github.com/anthonyknc/sgrna-oligo-designer/tree/main/example_outputs) folder of the repository.
 
 **IDT order form** — open in Excel to review, then upload directly to
 [IDT → Oligo Entry → "BULK INPUT"](https://www.idtdna.com/site/order/oligoentry).

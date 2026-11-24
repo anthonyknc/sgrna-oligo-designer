@@ -16,10 +16,13 @@ click==8.5.1 ; sys_platform != 'emscripten'
     #   uvicorn
 et-xmlfile==2.0.0
     # via openpyxl
+faicons==0.2.2
+    # via sgrna-oligo-designer
 h11==0.16.0 ; sys_platform != 'emscripten'
     # via uvicorn
 htmltools==0.7.0
     # via
+    #   faicons
     #   shiny
     #   shinychat
     #   shinyswatch

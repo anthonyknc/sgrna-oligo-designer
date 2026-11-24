@@ -11,7 +11,7 @@ vector in silico and reads the overhangs and the stuffer from it, so there is no
 
 > 🌐 **https://anthonyknc.shinyapps.io/sgrna-oligo-designer**
 
-No installation or coding required. Click **⚡ Load example sgRNAs** in the app to try it first.
+No installation or coding required. Click **Load example sgRNAs** in the app to try it first. The app has a light and a dark mode, and the **Guide** tab explains every option.
 
 ---
 

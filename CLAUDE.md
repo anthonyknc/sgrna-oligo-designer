@@ -10,7 +10,9 @@ Type IIS (restriction-enzyme) cloning of SpCas9 sgRNAs into lentiviral vectors. 
 ## Layout
 
 - `PyShinyApp/` is the self-contained deploy dir for shinyapps.io: `app.py` (Shiny for Python,
-  Core mode), `sgrna_oligo_designer.py` (core logic, no CLI), `help/*.md` (SOURCE OF TRUTH for the
+  Core mode; navbar layout with Design and Guide tabs, bslib cards/value boxes, `faicons` icons,
+  built-in `input_dark_mode`), `report.py` (tested presentation helpers: result table, oligo design
+  template, zip/CSV bundles; no Shiny code), `sgrna_oligo_designer.py` (core logic, no CLI), `help/*.md` (SOURCE OF TRUTH for the
   Guide tab; the README links to these files, keep their links absolute), `vectors/` (the three bundled
   vectors, offered as presets), `example_inputs/` (table for the "Load example data" button),
   and `requirements.txt` (GENERATED, don't hand-edit).
