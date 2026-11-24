@@ -38,6 +38,7 @@ from sgrna_oligo_designer import (
     read_vector_gb,
     sanitize_name,
     single_cutters,
+    suggest_cloning_sites,
     validate_ids,
     write_idt_excel,
 )
@@ -580,6 +581,23 @@ def server(input, output, session):
         ui.update_text("left_extra", placeholder=f"auto: {site.left_extra or '(none)'}")
         ui.update_text("right_extra", placeholder=f"auto: {site.right_extra or '(none)'}")
 
+    @reactive.calc
+    def suggestions():
+        """Cloning sites just downstream of the vector's Pol III promoter (may be empty)."""
+        try:
+            return suggest_cloning_sites(vector_record())
+        except Exception:
+            return []
+
+    def _suggestion_hint(site=None):
+        """A hint listing the sites that sit after the promoter, shown when the current one does not."""
+        found = suggestions()
+        if not found or (site is not None and site.promoter):
+            return None
+        names = "; ".join(x.enzymes for x in found[:6])
+        return ui.p(_fa("lightbulb"), " Cloning sites downstream of the Pol III promoter in this vector: ",
+                    ui.tags.strong(names), ". Choose one in step 2.", class_="hint small mt-2 mb-0")
+
     @render.ui
     def site_info():
         try:
@@ -588,7 +606,7 @@ def server(input, output, session):
             return ui.p((_missing_setup() or "Choose a vector and enzymes to see the cloning site."),
                         class_="hint mb-0")
         except Exception as e:
-            return _error_alert(e)
+            return ui.TagList(_error_alert(e), _suggestion_hint())
 
         chips = [
             _chip("Enzyme" + ("s" if site.enzyme_b else ""), site.enzymes),
@@ -596,6 +614,7 @@ def server(input, output, session):
             _chip("Right overhang", f"{site.right_overhang} ({site.right_kind})"),
             _chip("Replaced", f"{site.removed_length} bp"),
             _chip("Orientation", site.orientation),
+            _chip("Promoter", site.promoter or "none found upstream"),
         ]
         if site.left_extra or site.right_extra:
             chips += [_chip("Bases before spacer", site.left_extra or "–"),
@@ -627,6 +646,7 @@ def server(input, output, session):
                 ),
                 class_="status-ok ps-3",
             ),
+            _suggestion_hint(site),
             *[_alert("warning", _fa("triangle-exclamation"), w) for w in site.warnings],
         )
 

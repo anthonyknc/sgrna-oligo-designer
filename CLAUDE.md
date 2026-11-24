@@ -129,9 +129,18 @@ Tested on a real vector (`tests/fixtures/pMCB306.gb`, Addgene 89360) plus synthe
 pairs, using an independent check: cloning the original stuffer back must reproduce the digest strands.
 Not supported yet: shRNA hairpin inserts (pLKO.1, AgeI+EcoRI), stuffers longer than the backbone.
 
+## Promoter anchoring
+
+`promoters.py` (no dependency on the core) finds the Pol III promoter: annotation first (label regex),
+else local alignment of the ~100 bp 3' end against references (human U6 from ipUSEPR, mouse U6 from
+pMCB306). H1/7SK are annotation-only until a verified reference sequence is added. The core uses it to
+set `CloningSite.promoter`, break orientation ties when the scaffold cannot (`find_cloning_site` auto),
+and `suggest_cloning_sites()` (one enzyme: cuts twice and sits after the promoter; two enzymes: left cut
+after the promoter, right cut at the scaffold start). The app shows a Promoter chip and a hint. It is
+advisory: no promoter never blocks cloning.
+
 ## Known issues
 
-- The app only offers the combined `.gb`; per-sgRNA files are not offered.
 - A cloning site that spans the plasmid origin is rejected rather than handled (the error reports both piece sizes).
 - Tables are capped at `MAX_SGRNAS` (1000) rows; only `.xlsx/.xlsm/.csv/.tsv` are read (not `.xls`).
 - Spacer checks in `add_cloning_oligos`: enzyme site (both strands + junctions) and a TTTT Pol III

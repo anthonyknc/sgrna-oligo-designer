@@ -25,9 +25,11 @@ import copy
 import csv
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as _replace
 from functools import lru_cache
 from pathlib import Path
+
+from promoters import MAX_GAP as _PROMOTER_GAP, Pol3Promoter, find_pol3_promoters
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +197,7 @@ class CloningSite:
     left_bottom_trim: "int | None" = None    # None = the overhang length (a 5' overhang end)
     right_top_trim:   "int | None" = None
     right_bottom_trim: int = 0
+    promoter:         str = ""      # the Pol III promoter just upstream of the site, e.g. 'human U6 promoter (annotated)'
 
     @property
     def removed_length(self) -> int:
@@ -452,7 +455,8 @@ def _site_two(seq, left, right, orientation, left_extra, right_extra):
     return site, found
 
 
-def _find_two_enzyme_site(seq, rc_seq, name_a, name_b, orientation, left_extra, right_extra):
+def _find_two_enzyme_site(seq, rc_seq, name_a, name_b, orientation, left_extra, right_extra,
+                          promoters=()):
     candidates = two_enzyme_candidates()
     for name in (name_a, name_b):
         if name not in candidates:
@@ -478,9 +482,27 @@ def _find_two_enzyme_site(seq, rc_seq, name_a, name_b, orientation, left_extra, 
     rev, rev_found = build(rc_seq, "reverse")
     if rev_found:
         return rev
+    n = len(seq)
+    pf, pr = (_promoter_before(x, list(promoters), n) is not None for x in (fwd, rev))
+    if pf != pr:                                      # no scaffold, but the promoter shows the way
+        return fwd if pf else rev
     return CloningSite(**{**fwd.__dict__, "warnings": fwd.warnings + (
         "Could not confirm the sgRNA orientation: the Cas9 scaffold start was not found on either "
         "strand. Assuming forward; set the orientation under Advanced options if this is wrong.",)})
+
+
+def _promoter_before(site: CloningSite, promoters: list, n: int) -> "Pol3Promoter | None":
+    """The promoter that ends just upstream of the site in its own sense frame, if any."""
+    for p in promoters:
+        end = p.in_frame(n, site.orientation)
+        if end >= 0 and -8 <= site.replace_start - end <= _PROMOTER_GAP:
+            return p
+    return None
+
+
+def _annotate(site: CloningSite, promoters: list, n: int) -> CloningSite:
+    p = _promoter_before(site, promoters, n)
+    return _replace(site, promoter=p.label) if p else site
 
 
 def _looks_like_scaffold_start(right_overhang: str) -> bool:
@@ -539,9 +561,11 @@ def find_cloning_site(
 
     seq    = str(vector_record.seq).upper()
     rc_seq = reverse_complement(seq)
+    n = len(seq)
+    promoters = find_pol3_promoters(vector_record)
     if enzyme_b:
-        return _find_two_enzyme_site(seq, rc_seq, enzyme_name, enzyme_b, orientation,
-                                     left_extra, right_extra)
+        return _annotate(_find_two_enzyme_site(seq, rc_seq, enzyme_name, enzyme_b, orientation,
+                                                    left_extra, right_extra, promoters), promoters, n)
     if left_extra is not None or right_extra is not None:
         raise ValueError("Flanking bases can only be given in two-enzyme mode.")
     fx0, fy0 = _locate(seq, enzyme)                  # raises with a helpful message
@@ -554,21 +578,85 @@ def find_cloning_site(
         return _site_from(rc_seq, enzyme, rx0, ry0, "reverse")
 
     if orientation == "forward":
-        return forward()
+        return _annotate(forward(), promoters, n)
     if orientation == "reverse":
-        return reverse()
+        return _annotate(reverse(), promoters, n)
 
-    fwd = forward()
-    if _looks_like_scaffold_start(fwd.right_overhang):
-        return fwd
-    rev = reverse()
-    if _looks_like_scaffold_start(rev.right_overhang):
-        return rev
-    return forward((
+    fwd, rev = forward(), reverse()
+    scaf_f, scaf_r = (_looks_like_scaffold_start(x.right_overhang) for x in (fwd, rev))
+    prom_f, prom_r = (_promoter_before(x, promoters, n) is not None for x in (fwd, rev))
+    if scaf_f != scaf_r:
+        chosen = fwd if scaf_f else rev
+        if prom_f != prom_r and (prom_f != scaf_f):
+            chosen = _replace(chosen, warnings=chosen.warnings + (
+                "The Cas9 scaffold start and the Pol III promoter point to different orientations. "
+                "Check the orientation under Advanced options.",))
+        return _annotate(chosen, promoters, n)
+    if prom_f != prom_r:                              # the promoter decides when the scaffold cannot
+        return _annotate(fwd if prom_f else rev, promoters, n)
+    if scaf_f:                                        # both look like a scaffold start
+        return _annotate(fwd, promoters, n)
+    return _annotate(forward((
         f"Could not confirm the sgRNA orientation: expected the scaffold start ({SCAFFOLD_START}) "
         f"at the start of the right-hand overhang, found {fwd.right_overhang} (forward) / {rev.right_overhang} "
         "(reverse). Assuming forward; set the orientation under Advanced options if this is wrong.",
-    ))
+    )), promoters, n)
+
+
+def suggest_cloning_sites(vector_record, limit: int = 12) -> list[CloningSite]:
+    """
+    Cloning sites that sit just downstream of the vector's Pol III promoter, best first.
+
+    One-enzyme sites (enzymes that cut the vector exactly twice) come first, familiar enzymes
+    before the rest, then two-enzyme sites (two enzymes that each cut once, the left one right
+    after the promoter). Returns an empty list if no promoter is found or nothing fits.
+    """
+    promoters = find_pol3_promoters(vector_record)
+    if not promoters:
+        return []
+    out: list[CloningSite] = []
+    for name in all_enzymes():
+        try:
+            site = find_cloning_site(vector_record, name)
+        except ValueError:
+            continue
+        if site.promoter:
+            out.append(site)
+    out.sort(key=lambda x: (x.enzyme not in ENZYMES, x.enzyme.lower()))
+
+    seq = str(vector_record.seq).upper()
+    n = len(seq)
+    cuts = {name: _cuts(seq, enz) for name, enz in two_enzyme_candidates().items()}
+    singles = {name: c[0] for name, c in cuts.items() if len(c) == 1}
+    for p in promoters:
+        orient = "forward" if p.strand == +1 else "reverse"
+        end = p.in_frame(n, orient)
+        frame = seq if orient == "forward" else reverse_complement(seq)
+        scaffold = SCAFFOLD_RE.search(frame, end, end + 400)
+        if scaffold is None:
+            continue
+        pos = {name: (min(c) if orient == "forward" else n - max(c)) for name, c in singles.items()}
+        left = [a for a, pa in pos.items()
+                if -8 <= pa - end <= _PROMOTER_GAP and pa <= scaffold.start() - SPACER_LEN + 5]
+        right = [b for b, pb in pos.items() if scaffold.start() - 2 <= pb <= scaffold.start() + 40]
+        for a in left:
+            for b in right:
+                try:
+                    site = find_cloning_site(vector_record, a, orient, enzyme_b=b)
+                except ValueError:
+                    continue
+                if site.promoter:
+                    out.append(site)
+    # isoschizomers cut identically: keep one entry per distinct cut
+    unique, seen = [], set()
+    for x in out:
+        key = (x.orientation, x.left_overhang, x.right_overhang, x.replace_start, x.replace_end,
+               x.left_top_trim, x.right_bottom_trim)
+        if key not in seen:
+            seen.add(key)
+            unique.append(x)
+    out = unique
+    return out[:limit]
 
 
 # ---------------------------------------------------------------------------

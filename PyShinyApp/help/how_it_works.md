@@ -95,6 +95,18 @@ Any commercially available enzyme can be used here, including palindromic and de
 
 Two-enzyme mode has only been tested on one real vector (pMCB306) and on synthetic vectors, so compare the designed oligos with your vector's published oligo design before ordering. It currently designs sgRNAs only; shRNA hairpin vectors such as pLKO.1 need a different insert and are not supported yet.
 
+## The Pol III promoter
+
+The sgRNA is transcribed from a Pol III promoter (U6, H1 or 7SK). The app looks for it in your vector, first by its annotation (a feature named U6, hU6, mU6, H1, 7SK or Pol III promoter) and, if there is none, by sequence (human and mouse U6 are recognised this way). It is shown as **Promoter** in the Cloning site card.
+
+It is used in three ways:
+
+- **Orientation.** If the Cas9 scaffold cannot show which strand the sgRNA is on, the promoter does.
+- **Suggestions.** If the enzyme you chose does not cut next to the promoter, or does not cut the vector the right number of times, the card lists the sites that do (for example *BsmBI*, or *BstXI + BlpI*).
+- **Checking.** "none found upstream" means the sgRNA may be driven by something else (a tRNA, a ribozyme, or Pol II). That is fine for such vectors; otherwise check your enzyme choice.
+
+H1 and 7SK are recognised from annotations only, so an unannotated H1 or 7SK vector gets no promoter and no suggestions. The cloning itself still works as before.
+
 ## Do the oligos need to be phosphorylated?
 
 No. The oligos are ordered without a 5' phosphate, and that is fine. The digested vector
