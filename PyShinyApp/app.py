@@ -188,6 +188,15 @@ _INFO_JS = """
     if (e.target.closest('.popover')) return;
     closeOpen(e.target.closest('.info-btn'));
   });
+  // Guide links open in a new tab (in-page "#" links stay).
+  function newTab(a) {
+    if (!a || !a.getAttribute('href') || a.getAttribute('href').charAt(0) === '#') return;
+    a.target = '_blank'; a.rel = 'noopener';
+  }
+  document.addEventListener('click', function (e) { newTab(e.target.closest('.guide a')); }, true);
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.guide a').forEach(newTab);
+  });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeOpen(null, true); });
 })();
 """
@@ -210,7 +219,10 @@ body { font-feature-settings: "cv11", "ss01"; }
 .navbar .navbar-nav > li { display: flex; align-items: center; }
 .navbar .navbar-nav .nav-link, .navbar bslib-input-dark-mode { display: inline-flex; align-items: center; }
 .navbar bslib-input-dark-mode { min-height: 32px; }
-.navbar .navbar-nav a.nav-link > svg { display: block; vertical-align: middle; margin: 2px 0 0 0 !important; position: static; }
+.navbar .navbar-nav .nav-link { gap: 0.55rem; }
+.navbar .navbar-nav a.nav-link > svg { margin: 0 !important; }
+.navbar .navbar-nav a.gh-link > svg { display: block; vertical-align: middle; margin: 2px 0 0 0 !important; position: static; }
+.navbar bslib-input-dark-mode { transform: scale(1.25); transform-origin: center; }
 .navbar-brand .badge { font-size: 0.62rem; font-weight: 600; margin-left: 0.6rem; vertical-align: middle; }
 .card { border: 1px solid var(--bs-border-color); border-radius: 0.85rem;
         box-shadow: 0 1px 2px rgba(0,0,0,.04); }
@@ -415,11 +427,11 @@ def _guide_page():
 
 
 app_ui = ui.page_navbar(
-    ui.nav_panel("Design", _design_page(), icon=_fa("dna"), value="design"),
+    ui.nav_panel("Design", _design_page(), icon=_fa("pen-ruler"), value="design"),
     ui.nav_panel("Guide", _guide_page(), icon=_fa("book-open"), value="guide"),
     ui.nav_spacer(),
-    ui.nav_control(ui.tags.a(icon_svg("github", margin_left="0", margin_right="0"), href=_GITHUB_URL,
-                             target="_blank", rel="noopener", class_="nav-link", title="View on GitHub",
+    ui.nav_control(ui.tags.a(icon_svg("github", height="1.35rem", width="1.35rem", margin_left="0", margin_right="0"), href=_GITHUB_URL,
+                             target="_blank", rel="noopener", class_="nav-link gh-link", title="View on GitHub",
                              **{"aria-label": "View on GitHub"})),
     ui.nav_control(ui.input_dark_mode(id="dark_mode")),
     title=_TITLE,

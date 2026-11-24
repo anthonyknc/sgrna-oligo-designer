@@ -11,8 +11,9 @@ Versions are `major.minor`. The version in the app header, `_VERSION` in `PyShin
 - Nine bundled vectors, each labelled with its Addgene number (or PMID) and default enzyme(s): new are
   lentiGuide-Puro, pX330, pU6-(BbsI)_CBh-Cas9-T2A-mCherry-H1, phH1-gRNA, pU6-sgRNA EF1Alpha-puro-T2A-BFP
   and pMCB306. lentiCRISPR v2 and LentiCRISPRv2GFP were replaced by the Addgene records (same sequences).
+- Guide links open in a new tab.
 - New interface: navbar with Design and Guide tabs, light and dark mode, help popovers, including one for
   Load example sgRNAs.
-- Header: GitHub and light/dark icons aligned; version shown as `vMAJOR.MINOR`.
+- Header: GitHub and light/dark icons enlarged and aligned, more space between tab icons and labels, new Design icon; version shown as `vMAJOR.MINOR`.
 - Two-enzyme cloning (for example BstXI + BlpI), with the flanking bases suggested from the scaffold.
 - Enzyme-derived overhangs and stuffer; the Shiny app is the only entry point.
